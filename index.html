@@ -1,0 +1,2623 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Taxi Path Replay</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>/* required styles */
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	}
+.leaflet-container {
+	overflow: hidden;
+	}
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	-webkit-user-select: none;
+	   -moz-user-select: none;
+	        user-select: none;
+	  -webkit-user-drag: none;
+	}
+/* Prevents IE11 from highlighting tiles in blue */
+.leaflet-tile::selection {
+	background: transparent;
+}
+/* Safari renders non-retina tile on retina better with this, but Chrome is worse */
+.leaflet-safari .leaflet-tile {
+	image-rendering: -webkit-optimize-contrast;
+	}
+/* hack that prevents hw layers "stretching" when loading new tiles */
+.leaflet-safari .leaflet-tile-container {
+	width: 1600px;
+	height: 1600px;
+	-webkit-transform-origin: 0 0;
+	}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	display: block;
+	}
+/* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
+/* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
+.leaflet-container .leaflet-overlay-pane svg {
+	max-width: none !important;
+	max-height: none !important;
+	}
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+	width: auto;
+	padding: 0;
+	}
+
+.leaflet-container img.leaflet-tile {
+	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
+	mix-blend-mode: plus-lighter;
+}
+
+.leaflet-container.leaflet-touch-zoom {
+	-ms-touch-action: pan-x pan-y;
+	touch-action: pan-x pan-y;
+	}
+.leaflet-container.leaflet-touch-drag {
+	-ms-touch-action: pinch-zoom;
+	/* Fallback for FF which doesn't support pinch-zoom */
+	touch-action: none;
+	touch-action: pinch-zoom;
+}
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+	-ms-touch-action: none;
+	touch-action: none;
+}
+.leaflet-container {
+	-webkit-tap-highlight-color: transparent;
+}
+.leaflet-container a {
+	-webkit-tap-highlight-color: rgba(51, 181, 229, 0.4);
+}
+.leaflet-tile {
+	filter: inherit;
+	visibility: hidden;
+	}
+.leaflet-tile-loaded {
+	visibility: inherit;
+	}
+.leaflet-zoom-box {
+	width: 0;
+	height: 0;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	z-index: 800;
+	}
+/* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
+.leaflet-overlay-pane svg {
+	-moz-user-select: none;
+	}
+
+.leaflet-pane         { z-index: 400; }
+
+.leaflet-tile-pane    { z-index: 200; }
+.leaflet-overlay-pane { z-index: 400; }
+.leaflet-shadow-pane  { z-index: 500; }
+.leaflet-marker-pane  { z-index: 600; }
+.leaflet-tooltip-pane   { z-index: 650; }
+.leaflet-popup-pane   { z-index: 700; }
+
+.leaflet-map-pane canvas { z-index: 100; }
+.leaflet-map-pane svg    { z-index: 200; }
+
+.leaflet-vml-shape {
+	width: 1px;
+	height: 1px;
+	}
+.lvml {
+	behavior: url(#default#VML);
+	display: inline-block;
+	position: absolute;
+	}
+
+
+/* control positioning */
+
+.leaflet-control {
+	position: relative;
+	z-index: 800;
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+.leaflet-top,
+.leaflet-bottom {
+	position: absolute;
+	z-index: 1000;
+	pointer-events: none;
+	}
+.leaflet-top {
+	top: 0;
+	}
+.leaflet-right {
+	right: 0;
+	}
+.leaflet-bottom {
+	bottom: 0;
+	}
+.leaflet-left {
+	left: 0;
+	}
+.leaflet-control {
+	float: left;
+	clear: both;
+	}
+.leaflet-right .leaflet-control {
+	float: right;
+	}
+.leaflet-top .leaflet-control {
+	margin-top: 10px;
+	}
+.leaflet-bottom .leaflet-control {
+	margin-bottom: 10px;
+	}
+.leaflet-left .leaflet-control {
+	margin-left: 10px;
+	}
+.leaflet-right .leaflet-control {
+	margin-right: 10px;
+	}
+
+
+/* zoom and fade animations */
+
+.leaflet-fade-anim .leaflet-popup {
+	opacity: 0;
+	-webkit-transition: opacity 0.2s linear;
+	   -moz-transition: opacity 0.2s linear;
+	        transition: opacity 0.2s linear;
+	}
+.leaflet-fade-anim .leaflet-map-pane .leaflet-popup {
+	opacity: 1;
+	}
+.leaflet-zoom-animated {
+	-webkit-transform-origin: 0 0;
+	    -ms-transform-origin: 0 0;
+	        transform-origin: 0 0;
+	}
+svg.leaflet-zoom-animated {
+	will-change: transform;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
+	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
+	        transition:         transform 0.25s cubic-bezier(0,0,0.25,1);
+	}
+.leaflet-zoom-anim .leaflet-tile,
+.leaflet-pan-anim .leaflet-tile {
+	-webkit-transition: none;
+	   -moz-transition: none;
+	        transition: none;
+	}
+
+.leaflet-zoom-anim .leaflet-zoom-hide {
+	visibility: hidden;
+	}
+
+
+/* cursors */
+
+.leaflet-interactive {
+	cursor: pointer;
+	}
+.leaflet-grab {
+	cursor: -webkit-grab;
+	cursor:    -moz-grab;
+	cursor:         grab;
+	}
+.leaflet-crosshair,
+.leaflet-crosshair .leaflet-interactive {
+	cursor: crosshair;
+	}
+.leaflet-popup-pane,
+.leaflet-control {
+	cursor: auto;
+	}
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-draggable {
+	cursor: move;
+	cursor: -webkit-grabbing;
+	cursor:    -moz-grabbing;
+	cursor:         grabbing;
+	}
+
+/* marker & overlays interactivity */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-image-layer,
+.leaflet-pane > svg path,
+.leaflet-tile-container {
+	pointer-events: none;
+	}
+
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-image-layer.leaflet-interactive,
+.leaflet-pane > svg path.leaflet-interactive,
+svg.leaflet-image-layer.leaflet-interactive path {
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+
+/* visual tweaks */
+
+.leaflet-container {
+	background: #ddd;
+	outline-offset: 1px;
+	}
+.leaflet-container a {
+	color: #0078A8;
+	}
+.leaflet-zoom-box {
+	border: 2px dotted #38f;
+	background: rgba(255,255,255,0.5);
+	}
+
+
+/* general typography */
+.leaflet-container {
+	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	}
+
+
+/* general toolbar styles */
+
+.leaflet-bar {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+	border-radius: 4px;
+	}
+.leaflet-bar a {
+	background-color: #fff;
+	border-bottom: 1px solid #ccc;
+	width: 26px;
+	height: 26px;
+	line-height: 26px;
+	display: block;
+	text-align: center;
+	text-decoration: none;
+	color: black;
+	}
+.leaflet-bar a,
+.leaflet-control-layers-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+	background-color: #f4f4f4;
+	}
+.leaflet-bar a:first-child {
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	}
+.leaflet-bar a:last-child {
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+	border-bottom: none;
+	}
+.leaflet-bar a.leaflet-disabled {
+	cursor: default;
+	background-color: #f4f4f4;
+	color: #bbb;
+	}
+
+.leaflet-touch .leaflet-bar a {
+	width: 30px;
+	height: 30px;
+	line-height: 30px;
+	}
+.leaflet-touch .leaflet-bar a:first-child {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	}
+.leaflet-touch .leaflet-bar a:last-child {
+	border-bottom-left-radius: 2px;
+	border-bottom-right-radius: 2px;
+	}
+
+/* zoom control */
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+	font: bold 18px 'Lucida Console', Monaco, monospace;
+	text-indent: 1px;
+	}
+
+.leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
+	font-size: 22px;
+	}
+
+
+/* layers control */
+
+.leaflet-control-layers {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-layers-toggle {
+	background-image: url(images/layers.png);
+	width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-layers-toggle {
+	background-image: url(images/layers-2x.png);
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-layers-toggle {
+	width: 44px;
+	height: 44px;
+	}
+.leaflet-control-layers .leaflet-control-layers-list,
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+	display: none;
+	}
+.leaflet-control-layers-expanded .leaflet-control-layers-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-layers-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-layers-scrollbar {
+	overflow-y: scroll;
+	overflow-x: hidden;
+	padding-right: 5px;
+	}
+.leaflet-control-layers-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-layers label {
+	display: block;
+	font-size: 13px;
+	font-size: 1.08333em;
+	}
+.leaflet-control-layers-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+/* Default icon URLs */
+.leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+	background-image: url(images/marker-icon.png);
+	}
+
+
+/* attribution and scale controls */
+
+.leaflet-container .leaflet-control-attribution {
+	background: #fff;
+	background: rgba(255, 255, 255, 0.8);
+	margin: 0;
+	}
+.leaflet-control-attribution,
+.leaflet-control-scale-line {
+	padding: 0 5px;
+	color: #333;
+	line-height: 1.4;
+	}
+.leaflet-control-attribution a {
+	text-decoration: none;
+	}
+.leaflet-control-attribution a:hover,
+.leaflet-control-attribution a:focus {
+	text-decoration: underline;
+	}
+.leaflet-attribution-flag {
+	display: inline !important;
+	vertical-align: baseline !important;
+	width: 1em;
+	height: 0.6669em;
+	}
+.leaflet-left .leaflet-control-scale {
+	margin-left: 5px;
+	}
+.leaflet-bottom .leaflet-control-scale {
+	margin-bottom: 5px;
+	}
+.leaflet-control-scale-line {
+	border: 2px solid #777;
+	border-top: none;
+	line-height: 1.1;
+	padding: 2px 5px 1px;
+	white-space: nowrap;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.8);
+	text-shadow: 1px 1px #fff;
+	}
+.leaflet-control-scale-line:not(:first-child) {
+	border-top: 2px solid #777;
+	border-bottom: none;
+	margin-top: -2px;
+	}
+.leaflet-control-scale-line:not(:first-child):not(:last-child) {
+	border-bottom: 2px solid #777;
+	}
+
+.leaflet-touch .leaflet-control-attribution,
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+/* popup */
+
+.leaflet-popup {
+	position: absolute;
+	text-align: center;
+	margin-bottom: 20px;
+	}
+.leaflet-popup-content-wrapper {
+	padding: 1px;
+	text-align: left;
+	border-radius: 12px;
+	}
+.leaflet-popup-content {
+	margin: 13px 24px 13px 20px;
+	line-height: 1.3;
+	font-size: 13px;
+	font-size: 1.08333em;
+	min-height: 1px;
+	}
+.leaflet-popup-content p {
+	margin: 17px 0;
+	margin: 1.3em 0;
+	}
+.leaflet-popup-tip-container {
+	width: 40px;
+	height: 20px;
+	position: absolute;
+	left: 50%;
+	margin-top: -1px;
+	margin-left: -20px;
+	overflow: hidden;
+	pointer-events: none;
+	}
+.leaflet-popup-tip {
+	width: 17px;
+	height: 17px;
+	padding: 1px;
+
+	margin: -10px auto 0;
+	pointer-events: auto;
+
+	-webkit-transform: rotate(45deg);
+	   -moz-transform: rotate(45deg);
+	    -ms-transform: rotate(45deg);
+	        transform: rotate(45deg);
+	}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+	background: white;
+	color: #333;
+	box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+	}
+.leaflet-container a.leaflet-popup-close-button {
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: none;
+	text-align: center;
+	width: 24px;
+	height: 24px;
+	font: 16px/24px Tahoma, Verdana, sans-serif;
+	color: #757575;
+	text-decoration: none;
+	background: transparent;
+	}
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus {
+	color: #585858;
+	}
+.leaflet-popup-scrolled {
+	overflow: auto;
+	}
+
+.leaflet-oldie .leaflet-popup-content-wrapper {
+	-ms-zoom: 1;
+	}
+.leaflet-oldie .leaflet-popup-tip {
+	width: 24px;
+	margin: 0 auto;
+
+	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
+	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
+	}
+
+.leaflet-oldie .leaflet-control-zoom,
+.leaflet-oldie .leaflet-control-layers,
+.leaflet-oldie .leaflet-popup-content-wrapper,
+.leaflet-oldie .leaflet-popup-tip {
+	border: 1px solid #999;
+	}
+
+
+/* div icon */
+
+.leaflet-div-icon {
+	background: #fff;
+	border: 1px solid #666;
+	}
+
+
+/* Tooltip */
+/* Base styles for the element that has a tooltip */
+.leaflet-tooltip {
+	position: absolute;
+	padding: 6px;
+	background-color: #fff;
+	border: 1px solid #fff;
+	border-radius: 3px;
+	color: #222;
+	white-space: nowrap;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	pointer-events: none;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+.leaflet-tooltip.leaflet-interactive {
+	cursor: pointer;
+	pointer-events: auto;
+	}
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	position: absolute;
+	pointer-events: none;
+	border: 6px solid transparent;
+	background: transparent;
+	content: "";
+	}
+
+/* Directions */
+
+.leaflet-tooltip-bottom {
+	margin-top: 6px;
+}
+.leaflet-tooltip-top {
+	margin-top: -6px;
+}
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-top:before {
+	left: 50%;
+	margin-left: -6px;
+	}
+.leaflet-tooltip-top:before {
+	bottom: 0;
+	margin-bottom: -12px;
+	border-top-color: #fff;
+	}
+.leaflet-tooltip-bottom:before {
+	top: 0;
+	margin-top: -12px;
+	margin-left: -6px;
+	border-bottom-color: #fff;
+	}
+.leaflet-tooltip-left {
+	margin-left: -6px;
+}
+.leaflet-tooltip-right {
+	margin-left: 6px;
+}
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	top: 50%;
+	margin-top: -6px;
+	}
+.leaflet-tooltip-left:before {
+	right: 0;
+	margin-right: -12px;
+	border-left-color: #fff;
+	}
+.leaflet-tooltip-right:before {
+	left: 0;
+	margin-left: -12px;
+	border-right-color: #fff;
+	}
+
+/* Printing */
+
+@media print {
+	/* Prevent printers from removing background-images of controls. */
+	.leaflet-control {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+		}
+	}
+</style>
+<style>
+/* Layout: sign-mark header, three intake cards, then map (wide) beside the step list (narrow); stacks under 960px. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f6f8fa; --ink: #15202b; --muted: #566475; --line: #d4dbe3;
+  --accent: #0b5f8f; --accent-ink: #ffffff;
+  --sign-black: #141414; --sign-yellow: #f5c518; --sign-red: #c8102e;
+  --good: #1a7f37; --good-bg: #e3f4e7; --warn: #8a5a00; --warn-bg: #fff3d4; --bad: #b42318; --bad-bg: #fde7e5; --neutral-bg: #e9edf1;
+  --map-bg: #dfe4ea;
+  --f-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --surface-2: #1d2833; --ink: #e5ebf1; --muted: #9babbb; --line: #2c3a48;
+  --accent: #5db4e8; --accent-ink: #08141d;
+  --good: #6fd08c; --good-bg: #133222; --warn: #f0c060; --warn-bg: #3a2e10; --bad: #ff8a80; --bad-bg: #3d1a18; --neutral-bg: #26323e;
+  --map-bg: #1a232d; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --surface-2: #1d2833; --ink: #e5ebf1; --muted: #9babbb; --line: #2c3a48;
+  --accent: #5db4e8; --accent-ink: #08141d;
+  --good: #6fd08c; --good-bg: #133222; --warn: #f0c060; --warn-bg: #3a2e10; --bad: #ff8a80; --bad-bg: #3d1a18; --neutral-bg: #26323e;
+  --map-bg: #1a232d; color-scheme: dark }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.mark { display: inline-flex; align-items: stretch; border: 3px solid var(--sign-yellow); background: var(--sign-black); border-radius: 4px; overflow: hidden; }
+.mark span { font-family: var(--f-display); font-weight: 700; font-size: 26px; letter-spacing: .04em; padding: 2px 12px; line-height: 1.15; color: var(--sign-yellow); }
+.mark span + span { background: var(--sign-yellow); color: var(--sign-black); }
+.top p { margin: 0; color: var(--muted); max-width: 70ch; min-width: 0; flex: 1 1 320px; }
+.banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; background: var(--warn-bg); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 14px; }
+.banner b { color: var(--warn); }
+.banner p { margin: 0; flex: 1 1 300px; min-width: 0; }
+
+/* intake */
+.intake { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card h2 { font-family: var(--f-display); font-weight: 700; font-size: 20px; letter-spacing: .02em; text-transform: uppercase; }
+.card .fmt { color: var(--muted); font-size: 12.5px; margin: 0; }
+.drop { display: grid; place-items: center; text-align: center; border: 1.5px dashed var(--line); border-radius: 6px; padding: 14px 10px; cursor: pointer; background: var(--surface-2); color: var(--muted); transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); color: var(--ink); }
+.drop b { color: var(--accent); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.card-status { font-size: 13px; border-radius: 6px; padding: 8px 10px; background: var(--neutral-bg); overflow-wrap: anywhere; }
+.card-status.ok { background: var(--good-bg); } .card-status.warn { background: var(--warn-bg); } .card-status.err { background: var(--bad-bg); color: var(--bad); }
+.card-status.idle { background: transparent; padding: 0; color: var(--muted); }
+details.paste summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+details.paste textarea { width: 100%; min-height: 140px; margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); padding: 8px; font-family: var(--f-mono); font-size: 12px; resize: vertical; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 500; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+button.link { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; }
+
+/* aircraft */
+.fleet { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 10px; }
+.fleet-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.fleet-head h2 { font-family: var(--f-display); font-weight: 700; font-size: 20px; letter-spacing: .02em; text-transform: uppercase; }
+.fleet-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.ac { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; border: 1px solid var(--line); border-left: 5px solid var(--fc); border-radius: var(--r); padding: 6px 10px 6px 8px; background: var(--surface-2); min-width: 0; max-width: 100%; }
+.ac.on { background: var(--surface); box-shadow: 0 0 0 2px var(--fc); }
+.ac-pick { display: inline-flex; gap: 8px; align-items: center; background: none; border: 0; padding: 2px; cursor: pointer; text-align: left; min-width: 0; }
+.ac-txt { display: grid; min-width: 0; }
+.ac-name { font-family: var(--f-mono); font-weight: 500; overflow-wrap: anywhere; }
+.ac-sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.ac-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--fc); flex: none; box-shadow: 0 0 0 2px var(--surface); }
+.ac-show { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; cursor: pointer; }
+.ac-rm { font-size: 13px; }
+.fleet-note { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.for { display: inline-flex; gap: 6px; align-items: center; font-family: var(--f-mono); font-size: .7em; font-weight: 500; letter-spacing: 0; text-transform: none; vertical-align: 2px; color: var(--ink); overflow-wrap: anywhere; }
+.intake.multi .card:not(:first-child) { border-top: 4px solid var(--fc); }
+.settings-for { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.settings-for:empty { display: none; }
+.settings-for .for { font-size: 1em; vertical-align: 0; }
+.craft-tag.left { left: auto; right: 24px; }
+.sl-ac { display: inline-flex; gap: 5px; align-items: center; margin-right: 12px; }
+.craft { overflow: visible; }
+.craft-tag { position: absolute; left: 24px; top: -4px; white-space: nowrap; color: #fff; font-family: var(--f-mono); font-size: 11px; font-weight: 500; padding: 0 4px; border-radius: 3px; border: 1px solid #fff; }
+/* settings */
+.settings { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.field input, .field select { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--surface-2); min-width: 0; }
+.field input { width: 12ch; font-family: var(--f-mono); text-transform: uppercase; }
+.field small { color: var(--muted); font-size: 12px; max-width: 46ch; }
+
+/* main */
+.main { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.mapcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: grid; min-width: 0; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.toolbar .grp { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.toolbar label { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; cursor: pointer; }
+.mapbox { position: relative; }
+#map { height: min(72vh, 760px); min-height: 380px; background: var(--map-bg); }
+#map.picking, #map.picking .leaflet-interactive { cursor: crosshair; }
+#map-empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); pointer-events: none; z-index: 500; }
+.scrub { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.scrub input { width: 100%; accent-color: var(--accent); }
+.scrub .lbl { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.scrub > span { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+details#align { border-top: 1px solid var(--line); padding: 10px 12px; }
+details#align summary { cursor: pointer; font-weight: 600; }
+.align-body { display: grid; gap: 10px; margin-top: 10px; }
+.align-state { font-size: 13px; padding: 8px 10px; border-radius: 6px; background: var(--neutral-bg); }
+.align-state.ok { background: var(--good-bg); } .align-state.warn, .align-state.need { background: var(--warn-bg); } .align-state.bad { background: var(--bad-bg); }
+.align-row { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: flex-start; }
+#ctrl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+#ctrl-list li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.ctrl-n { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--sign-black); color: var(--sign-yellow); font-size: 11px; font-weight: 700; }
+.resid { color: var(--muted); }
+#pt-form { display: grid; gap: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+#pt-form .row { display: flex; flex-wrap: wrap; gap: 8px; }
+#pt-form input { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-family: var(--f-mono); background: var(--surface); }
+#pt-err { color: var(--bad); font-size: 12.5px; }
+.nudge { display: grid; grid-template-columns: repeat(3, 34px); gap: 4px; }
+.nudge button { height: 30px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; cursor: pointer; font-size: 12px; }
+.help { color: var(--muted); font-size: 12.5px; margin: 0; max-width: 72ch; }
+
+/* steps */
+.side { display: grid; gap: 10px; min-width: 0; }
+.side-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.side-head h2 { font-family: var(--f-display); font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; }
+#steps { display: grid; gap: 8px; max-height: min(78vh, 900px); overflow: auto; padding-right: 2px; }
+@media (max-width: 960px) { #steps { max-height: none; } }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px 10px 12px; display: grid; gap: 6px; cursor: pointer; min-width: 0; border-left: 5px solid var(--c); }
+.step:hover { border-color: var(--c); }
+.step.sel { box-shadow: 0 0 0 2px var(--c); }
+.step.active header .num { outline: 2px solid var(--ink); outline-offset: 1px; }
+.step header { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.step .num { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 11px; background: var(--c); color: #fff; font-weight: 700; font-size: 12px; padding: 0 5px; }
+.step .when { font-family: var(--f-mono); color: var(--ink); }
+.step h3 { font-size: 15px; font-weight: 600; line-height: 1.6; }
+.say { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.say b { display: inline-block; min-width: 4.6em; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.say.atc { color: var(--ink); } .say.rb, .say.pilot { color: var(--muted); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 2px 10px; overflow-wrap: anywhere; }
+.pill.good { background: var(--good-bg); color: var(--good); } .pill.warn { background: var(--warn-bg); color: var(--warn); } .pill.bad { background: var(--bad-bg); color: var(--bad); } .pill.neutral { background: var(--neutral-bg); color: var(--muted); }
+.move { font-size: 13px; }
+.flags { margin: 0; padding-left: 18px; font-size: 13px; display: grid; gap: 2px; }
+.flags li.bad { color: var(--bad); }
+.near .miss { color: var(--warn); display: block; margin-top: 2px; }
+details.aside { font-size: 12.5px; color: var(--muted); }
+details.aside summary { cursor: pointer; }
+details.aside p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.step.company { border-left-style: dashed; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+#no-track { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 600; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.18); overflow-wrap: anywhere; }
+.near, .note-sm { font-size: 12.5px; color: var(--muted); }
+.empty { color: var(--muted); padding: 18px; border: 1.5px dashed var(--line); border-radius: var(--r); text-align: center; }
+.hs-note { font-size: 13px; background: var(--bad-bg); border-radius: 6px; padding: 8px 10px; }
+details.excl { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+details.excl summary { cursor: pointer; font-weight: 600; }
+details.excl ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; overflow-wrap: anywhere; }
+.why { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+
+/* airport sign chips: direction signs are black on yellow, runway and hold signs are white on red, location signs yellow on black */
+.sgn { display: inline-block; font-family: var(--f-display); font-weight: 700; font-size: 15px; line-height: 1; padding: 3px 6px 2px; border-radius: 2px; letter-spacing: .03em; vertical-align: 1px; }
+.sgn.twy { background: var(--sign-yellow); color: var(--sign-black); }
+.sgn.rwy { background: var(--sign-red); color: #fff; }
+.sgn.loc { background: var(--sign-black); color: var(--sign-yellow); box-shadow: inset 0 0 0 1.5px var(--sign-yellow); }
+.sgn.sm { font-size: 13px; padding: 2px 5px 1px; }
+.sgn-sep { display: inline-block; width: 4px; }
+.dot-sep { color: var(--muted); margin-right: 2px; }
+
+footer { color: var(--muted); font-size: 12.5px; display: grid; gap: 6px; max-width: 90ch; }
+footer p { margin: 0; }
+
+/* leaflet bits */
+.leaflet-container { font-family: var(--f-body); background: var(--map-bg); }
+.num-ic span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.ctrl-ic span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 3px; background: #141414; color: #f5c518; font-size: 11px; font-weight: 700; border: 1.5px solid #f5c518; }
+.att-lbl.left span { transform: translateX(-100%); }
+.att-lbl span { display: inline-block; white-space: nowrap; background: #c8102e; color: #fff; font-weight: 700; font-size: 11px; padding: 1px 5px; border-radius: 2px; }
+.craft svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+.tt { max-width: 280px; white-space: normal; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="mark" aria-hidden="true"><span>TAXI</span><span>&larr; REPLAY</span></div>
+    <p>Attach the airport diagram, the ATC transcript and the aircraft&rsquo;s ADS-B track. Each ATC instruction becomes a step, drawn on the diagram with its readback check. Files stay in this browser.</p>
+  </div>
+
+  <div class="banner" id="sample-banner" hidden>
+    <p id="sample-text"><b>Sample loaded.</b></p>
+    <button class="btn" id="btn-clear" type="button">Clear sample</button>
+  </div>
+
+  <section class="intake" id="intake" aria-label="Files">
+    <div class="card">
+      <h2>Airport diagram</h2>
+      <label class="drop" id="drop-diagram"><input type="file" id="in-diagram" accept=".pdf,application/pdf,image/*"><span><b>Choose a file</b> or drop it here</span></label>
+      <div class="card-status idle" id="st-diagram"></div>
+    </div>
+    <div class="card">
+      <h2>ATC transcript <span id="tx-for"></span></h2>
+      <label class="drop" id="drop-transcript"><input type="file" id="in-transcript" accept=".txt,.text,.log,.csv,text/plain"><span><b>Choose a file</b> or drop it here</span></label>
+      <details class="paste"><summary>Paste the text instead</summary>
+        <textarea id="tx-paste" spellcheck="false" aria-label="Transcript text"></textarea>
+        <div><button class="btn primary" id="tx-apply" type="button">Use this text</button></div>
+      </details>
+      <button class="btn" id="tx-share" type="button" hidden>Use the same transcript</button>
+      <div class="card-status idle" id="st-transcript"></div>
+    </div>
+    <div class="card">
+      <h2>ADS-B track <span id="tr-for"></span></h2>
+      <label class="drop" id="drop-track"><input type="file" id="in-track" accept=".csv,.kml,.txt,text/csv,application/vnd.google-earth.kml+xml"><span><b>Choose a file</b> or drop it here</span></label>
+      <div class="card-status idle" id="st-track"></div>
+    </div>
+  </section>
+
+  <section class="settings" aria-label="Flight settings">
+    <div class="settings-for" id="settings-for"></div>
+    <div class="field"><label for="callsign">Callsign</label><input id="callsign" placeholder="AAL1154" autocomplete="off"><small id="cs-note"></small></div>
+    <div class="field"><label for="tz">Transcript time zone</label><select id="tz"></select><small id="tz-note"></small></div>
+    <div class="field"><label>Examples</label><div class="btnrow"><button class="btn" id="btn-sample" type="button">SWA4628 at MKE</button><button class="btn" id="btn-sample2" type="button">AAL1154 at MIA (made up)</button></div></div>
+  </section>
+
+  <section class="fleet" aria-label="Aircraft">
+    <div class="fleet-head"><h2>Aircraft</h2><button class="btn" id="btn-add-ac" type="button">Add aircraft</button></div>
+    <div class="fleet-list" id="fleet-list"></div>
+    <p class="fleet-note" id="fleet-note"></p>
+  </section>
+
+  <section class="main">
+    <div class="mapcard">
+      <div class="toolbar">
+        <div class="grp" role="group" aria-label="Layers">
+          <label><input type="checkbox" id="lyr-diagram" checked> Diagram</label>
+          <label><input type="checkbox" id="lyr-steps" checked> Steps</label>
+          <label><input type="checkbox" id="lyr-track" checked> Raw ADS-B</label>
+          <label><input type="checkbox" id="lyr-attention" checked> Attention areas</label>
+          <label><input type="checkbox" id="lyr-named" checked> Chart labels named</label>
+        </div>
+        <div class="grp" role="group" aria-label="Step through">
+          <button class="btn" id="btn-prev" type="button">Previous step</button>
+          <button class="btn" id="btn-next" type="button">Next step</button>
+          <button class="btn" id="btn-all" type="button">Show all</button>
+        </div>
+      </div>
+      <div class="mapbox"><div id="map" aria-label="Airport diagram with taxi path"></div><div id="map-empty"><p>Attach a diagram and a track to draw the taxi path.</p></div><div id="no-track" hidden><b>No ADS-B track yet.</b> Circles mark the chart labels each instruction names. Attach a KML or CSV track to draw the path the aircraft actually took.</div></div>
+      <div class="scrub"><span>Replay</span><input type="range" id="scrub" disabled aria-label="Replay time"><div class="lbl" id="scrub-lbl"></div></div>
+      <details id="align">
+        <summary>Diagram alignment</summary>
+        <div class="align-body">
+          <div class="align-state" id="align-state"></div>
+          <div class="align-row">
+            <div style="display:grid;gap:8px;min-width:0;flex:1 1 280px">
+              <div><button class="btn" id="btn-add-pt" type="button">Add control point</button></div>
+              <form id="pt-form" hidden>
+                <span id="pt-where" class="help"></span>
+                <div class="row"><input id="pt-ll" aria-label="Latitude and longitude of the point" autocomplete="off"><button class="btn primary" type="submit">Save point</button><button class="btn" type="button" id="pt-cancel">Cancel</button></div>
+                <span id="pt-err"></span>
+              </form>
+              <ul id="ctrl-list"></ul>
+            </div>
+            <div style="display:grid;gap:6px">
+              <span class="help">Nudge the track 5 m</span>
+              <div class="nudge">
+                <span></span><button type="button" data-n="0,5" aria-label="North">N</button><span></span>
+                <button type="button" data-n="-5,0" aria-label="West">W</button><button type="button" data-n="reset" aria-label="Reset nudge">0</button><button type="button" data-n="5,0" aria-label="East">E</button>
+                <span></span><button type="button" data-n="0,-5" aria-label="South">S</button><span></span>
+              </div>
+            </div>
+          </div>
+          <p class="help">FAA diagrams print latitude and longitude ticks on the border, and this page reads them to align the chart. If it cannot, click Add control point, click a spot on the diagram such as a border tick or a runway end, and type its coordinates. Two points align a north-up chart. Three or more also correct skew and show the fit error.</p>
+        </div>
+      </details>
+    </div>
+
+    <aside class="side">
+      <div class="side-head"><h2>ATC steps <span id="steps-for"></span></h2><label style="font-size:13px;display:inline-flex;gap:5px;align-items:center"><input type="checkbox" id="only-move"> Movement only</label></div>
+      <div class="hs-note" id="hs-note" hidden></div>
+      <div id="steps"></div>
+      <details class="excl" id="excluded" hidden><summary>Left out of the steps (<span id="excluded-count">0</span>)</summary><ul id="excluded-list"></ul></details>
+    </aside>
+  </section>
+
+  <footer>
+    <p><b>How the steps are drawn.</b> Each ATC call for this aircraft starts a step. The colored line is the ADS-B track from that call until the next one, so it shows what the aircraft did after each instruction. Hold points are stops of 15 seconds or more after a hold-short instruction. Readback checks compare taxiways, runways, hold-short points, frequencies, speeds, gates and spots between the instruction and the reply.</p>
+    <p><b>Limits.</b> Transcripts are machine-made and miss words, so a flagged readback may be a transcription gap. Chart labels near the path are a rough cue, not a route check. Not for navigation.</p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script>/* TaxiCore: parsing, alignment and step logic. No DOM access except DOMParser for KML. */
+(function (root) {
+  'use strict';
+  const M_LAT = 110574, M_LON_EQ = 111320;
+
+  // ---------------- airline telephony ----------------
+  const TEL = {
+    AAL: 'American', DAL: 'Delta', UAL: 'United', SWA: 'Southwest', JBU: 'JetBlue', ASA: 'Alaska',
+    NKS: 'Spirit', FFT: 'Frontier', AAY: 'Allegiant', SKW: 'SkyWest', ENY: 'Envoy', RPA: 'Brickyard',
+    EDV: 'Endeavor', JIA: 'Blue Streak', PDT: 'Piedmont', ASH: 'Air Shuttle', GJS: 'Lindbergh',
+    FDX: 'FedEx', UPS: 'UPS', GTI: 'Giant', ABX: 'Abex', ATN: 'Air Transport', CMP: 'Copa',
+    AVA: 'Avianca', LAN: 'LAN', TAM: 'TAM', AMX: 'Aeromexico', VOI: 'Volaris', ACA: 'Air Canada',
+    WJA: 'WestJet', BAW: 'Speedbird', VIR: 'Virgin', DLH: 'Lufthansa', AFR: 'Airfrans', KLM: 'KLM',
+    IBE: 'Iberia', UAE: 'Emirates', QTR: 'Qatari', THY: 'Turkish', SCX: 'Sun Country', HAL: 'Hawaiian',
+    BWA: 'Beeline', CAY: 'Cayman', KAP: 'Cair', SIL: 'Silver Wings', EIN: 'Shamrock', TAI: 'Taca',
+    ARG: 'Argentina', LPE: 'Lanperu', VIV: 'Aerovias', WIG: 'Wiggins', MXY: 'Moxy', BRZ: 'Breeze'
+  };
+  const AIRLINE_WORDS = Object.values(TEL).map(s => s.toLowerCase());
+  const FACILITY_WORDS = ['tower', 'ground', 'ramp', 'apron', 'approach', 'departure', 'center', 'centre',
+    'clearance', 'delivery', 'atc', 'controller', 'gates', 'metering', 'ops', 'operations'];
+
+  // ---------------- small helpers ----------------
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function median(a) { const s = a.slice().sort((x, y) => x - y); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : 0; }
+  function distM(a, b) {
+    const k = Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
+    return Math.hypot((a.lat - b.lat) * M_LAT, (a.lon - b.lon) * M_LON_EQ * k);
+  }
+  function fmtDur(s) {
+    s = Math.round(s); if (s < 60) return s + ' s';
+    const m = Math.floor(s / 60), r = s % 60; return m + ' min' + (r ? ' ' + r + ' s' : '');
+  }
+
+  // ---------------- spoken numbers and phonetics ----------------
+  const ONES = { zero: 0, oh: 0, one: 1, two: 2, three: 3, tree: 3, four: 4, fower: 4, five: 5, fife: 5, six: 6, seven: 7, eight: 8, nine: 9, niner: 9 };
+  const TEENS = { ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+  const TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  const PHON = { alpha: 'A', alfa: 'A', bravo: 'B', charlie: 'C', delta: 'D', echo: 'E', foxtrot: 'F', golf: 'G', hotel: 'H', india: 'I',
+    juliet: 'J', juliett: 'J', kilo: 'K', lima: 'L', mike: 'M', november: 'N', oscar: 'O', papa: 'P', quebec: 'Q', romeo: 'R',
+    sierra: 'S', tango: 'T', uniform: 'U', victor: 'V', whiskey: 'W', whisky: 'W', xray: 'X', 'x-ray': 'X', yankee: 'Y', zulu: 'Z' };
+
+  function wordsToDigits(text) {
+    // Turn runs of spoken number words into digit strings: "eleven fifty four" -> "1154", "one two three point niner" -> "123.9"
+    const toks = text.split(/(\s+|,|-)/);
+    const out = []; let run = '';
+    const flush = () => { if (run) { out.push(run); run = ''; } };
+    for (let i = 0; i < toks.length; i++) {
+      const t0 = toks[i]; if (t0 === undefined) continue;
+      const pm = t0.match(/^(.*?)([.!?;:]+)$/); const t = pm ? pm[1] : t0; const punct = pm ? pm[2] : '';
+      const w = t.toLowerCase();
+      if (/^\s+$|^-$/.test(t0)) { if (run) continue; out.push(t0); continue; }
+            const done = () => { if (punct) { flush(); out.push(punct); } };
+      if (w in ONES && !(w === 'oh' && !run)) { run += ONES[w]; done(); continue; }
+      if (w in TEENS) { run += TEENS[w]; done(); continue; }
+      if (w in TENS) {
+        // look ahead for a unit
+        let j = i + 1; while (j < toks.length && /^\s+$|^-$/.test(toks[j])) j++;
+        const nx = (toks[j] || '').toLowerCase();
+        const nxw = nx.replace(/[.!?;:]+$/, '');
+        if (!punct && nxw in ONES && ONES[nxw] > 0) { run += (TENS[w] + ONES[nxw]); i = j; const np = nx.match(/[.!?;:]+$/); if (np) { flush(); out.push(np[0]); } } else { run += TENS[w]; done(); }
+        continue;
+      }
+      if (w === 'hundred' && run) { run += '00'; done(); continue; }
+      if (w === 'thousand' && run) { run += '000'; done(); continue; }
+      if (w === 'point' && run && !punct) { run += '.'; continue; }
+      flush(); out.push(t0);
+    }
+    flush();
+    // re-space: digit runs followed directly by words need a space
+    return out.join('').replace(/(\d)(?![LRC]\b)([A-Za-z])/g, (m, a, b) => a + ' ' + b);
+  }
+
+  function phoneticToLetters(text) {
+    return text.replace(/\b(alpha|alfa|bravo|charlie|echo|foxtrot|golf|hotel|juliett?|kilo|lima|mike|november|oscar|papa|quebec|romeo|sierra|tango|uniform|victor|whiske?y|x-?ray|yankee|zulu|delta|india)\b(\s*(\d{1,2})\b)?/gi,
+      (m, w, rest, dig) => {
+        const L = PHON[w.toLowerCase().replace('-', '')] || PHON[w.toLowerCase()];
+        if (!L) return m;
+        return dig ? L + dig : L;
+      });
+  }
+
+  // ---------------- callsign ----------------
+  function callsignInfo(raw) {
+    raw = (raw || '').trim().toUpperCase().replace(/\s+/g, '');
+    const m = raw.match(/^([A-Z]{3})(\d{1,4}[A-Z]{0,2})$/);
+    if (m) {
+      const tel = TEL[m[1]] || null;
+      return { raw, icao: m[1], number: m[2].replace(/[A-Z]+$/, ''), suffix: (m[2].match(/[A-Z]+$/) || [''])[0], telephony: tel, label: tel ? tel + ' ' + m[2] : raw };
+    }
+    const n = raw.match(/^N?\d{1,5}[A-Z]{0,2}$/) ? raw : null;
+    return { raw, icao: null, number: n ? raw.replace(/^N/, '') : raw, suffix: '', telephony: n ? 'November' : null, label: raw };
+  }
+
+  // Find a callsign mention in text. Returns {ours:bool, similar:bool, other:bool, text, index, end}
+  function findCallsigns(text, cs) {
+    const res = [];
+    const t = text;
+    const nums = '(\\d{1,4}\\s?\\d{0,3}[A-Z]{0,2})';
+    const names = AIRLINE_WORDS.concat(['november', 'cactus', 'speedbird']).map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const re = new RegExp('\\b(' + names.join('|') + '|[A-Z]{3})\\s?' + nums + '\\b', 'gi');
+    let m;
+    while ((m = re.exec(t))) {
+      const word = m[1]; const digits = m[2].replace(/\s/g, '').replace(/[A-Z]+$/i, '');
+      if (/^\d+$/.test(word)) continue;
+      if (NOT_CS.has(word.toUpperCase())) continue;
+      const isIcao = /^[A-Z]{3}$/.test(word) && word === word.toUpperCase();
+      if (!isIcao && !AIRLINE_WORDS.includes(word.toLowerCase()) && !['november', 'cactus', 'speedbird'].includes(word.toLowerCase())) continue;
+      if (word.toLowerCase() === 'runway') continue;
+      const wordOk = cs.telephony && word.toLowerCase() === cs.telephony.toLowerCase() || cs.icao && word.toUpperCase() === cs.icao;
+      const ours = wordOk && digits === cs.number;
+      if (!ours && digits.length < 2) continue;
+      const similar = !ours && (digits === cs.number || (digits.length >= 2 && (cs.number.endsWith(digits) || digits.endsWith(cs.number))) || (wordOk && levenshtein(digits, cs.number) <= 1));
+      res.push({ ours, similar, other: !ours && !similar, text: m[0], index: m.index, end: m.index + m[0].length });
+    }
+    // abbreviated: bare number at the start ("1154, go for Ramp") or end ("..., 1154")
+    if (!res.some(r => r.ours) && cs.number && cs.number.length >= 3) {
+      const st = t.match(new RegExp('^\\s*(?:(?!maintain|heading|squawk|climb|descend|runway|level|gate)[A-Za-z]+[\\s,]+)?' + cs.number + '\\b', 'i'));
+      const en = t.match(new RegExp('\\b' + cs.number + '\\s*[.!]?\\s*$'));
+      if (st) res.push({ ours: true, similar: false, other: false, text: cs.number, index: st.index + st[0].length - cs.number.length, end: st.index + st[0].length, abbreviated: true });
+      else if (en) res.push({ ours: true, similar: false, other: false, text: cs.number, index: en.index, end: t.length, abbreviated: true });
+    }
+    return res.sort((a, b) => a.index - b.index);
+  }
+  const NOT_CS = new Set(['RWY', 'TWY', 'ILS', 'VOR', 'DME', 'RNP', 'GPS', 'LOC', 'NDB', 'ATC', 'FAA', 'HDG', 'ALT', 'SPD', 'MPH', 'KTS', 'UTC', 'CST', 'CDT', 'EST', 'EDT', 'PST', 'PDT', 'MST', 'MDT', 'THE', 'AND', 'FOR', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'SPOT', 'GATE']);
+  function levenshtein(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i].concat(Array(b.length).fill(0)));
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+
+  // ---------------- instruction elements ----------------
+  const STOP = new Set(['OK', 'NO', 'ON', 'IN', 'AT', 'TO', 'OF', 'UP', 'IS', 'IT', 'AN', 'AM', 'PM', 'IF', 'SO', 'OR', 'BY', 'GO', 'DO', 'ME', 'MY', 'WE', 'US', 'UH', 'UM', 'I', 'O', 'A', 'HI', 'OH', 'AH', 'EH', 'HE', 'BE', 'AS', 'ID', 'TV', 'GS', 'ER', 'Z']);
+  function normRunway(num, side) {
+    let n = String(parseInt(num, 10));
+    side = (side || '').toLowerCase();
+    const s = side.startsWith('l') ? 'L' : side.startsWith('r') ? 'R' : side.startsWith('c') ? 'C' : '';
+    return n + s;
+  }
+  function freqDigits(s) { return String(s).replace(/[^\d]/g, ''); }
+  function freqMatch(a, b) {
+    const x = freqDigits(a), y = freqDigits(b);
+    if (!x || !y) return false;
+    return x.length >= y.length ? x.endsWith(y) : y.endsWith(x);
+  }
+
+  function prepText(text, cs) {
+    let t = ' ' + text + ' ';
+    t = wordsToDigits(t);
+    // remove our callsign and other callsigns
+    const found = findCallsigns(t, cs).slice().reverse();
+    for (const f of found) t = t.slice(0, f.index) + ' ' + t.slice(f.end);
+    t = phoneticToLetters(t);
+    return t;
+  }
+
+  function extractElements(text, cs) {
+    const el = { route: [], hold: [], cross: [], runways: [], land: false, takeoff: false, luaw: false, freqs: [], speed: [], alt: [], gate: null, spot: null, cond: false, turns: [], miles: [] };
+    if (!text) return el;
+    let t = prepText(text, cs);
+    const cut = (re, fn) => { t = t.replace(re, function () { fn.apply(null, arguments); return ' '; }); };
+    if (/cleared to land/i.test(t)) el.land = true;
+    if (/cleared for (take ?off|departure)/i.test(t)) el.takeoff = true;
+    if (/line up and wait|position and hold/i.test(t)) el.luaw = true;
+    if (/\bbehind\b|\bfollow(ing)?\b|\bafter the\b|\bgive way\b/i.test(t)) el.cond = true;
+    (t.match(/\b(left|right)\b(?= (on|onto|at|turn|into))/gi) || []).forEach(x => el.turns.push(x.toLowerCase()));
+    cut(/[Hh]old(?:ing)?\s+short\s+(?:of\s+)?(?:(?:runway|rwy)\s*(\d{1,2})\s*(left|right|center|L|R|C)?\b|([A-Z]{1,2}\d{0,2})\b)/g,
+      (m, rn, side, tw) => el.hold.push(rn ? 'RWY ' + normRunway(rn, side) : tw));
+    cut(/\bcross(?:ing|ed)?\s+(?:(?:runway|rwy)\s*)?(\d{1,2})\s*(left|right|center|L|R|C)?\b/gi, (m, rn, side) => el.cross.push('RWY ' + normRunway(rn, side)));
+    cut(/\b(?:runway|rwy)\s*(\d{1,2})\s*(left|right|center|L|R|C)?\b/gi, (m, rn, side) => el.runways.push('RWY ' + normRunway(rn, side)));
+    cut(/\b([0-3]?\d)([LRC])\b/g, (m, rn, side) => el.runways.push('RWY ' + normRunway(rn, side)));
+    cut(/\bgate,?\s+(?:is\s+)?([A-Z]?\d{1,3}[A-Z]?)\b/gi, (m, g) => { el.gate = g.toUpperCase(); });
+    cut(/\b(?:see you at|see ya at|park(?:ing)? (?:at|on)|going to|headed to|heading to|bring it (?:in )?to)\s+([A-Z]\d{1,3}[A-Z]?)\b/g, (m, g) => { el.gate = g.toUpperCase(); });
+    cut(/\bspot\s+(\d{1,3})\b/gi, (m, s) => { el.spot = s; });
+    cut(/\b(1[1-3]\d\.\d{1,3})\b/g, (m, f) => el.freqs.push(f));
+    cut(/\b(\d{2}\.\d{1,3})\b/g, (m, f) => el.freqs.push(f));
+    cut(/\bpoint\s+(\d{1,3})\b/gi, (m, f) => el.freqs.push('.' + f));
+    cut(/\b(?:maintain|descend|climb)(?:\s+and\s+maintain)?\s+(\d{1,2},?\d{3})\b/gi, (m, a) => el.alt.push(a.replace(',', '')));
+    cut(/\bflight level\s+(\d{2,3})\b/gi, (m, a) => el.alt.push('FL' + a));
+    if (/speed|knots/i.test(t)) cut(/\b(\d{3})\b/g, (m, s) => { const v = +s; if (v >= 100 && v <= 350) el.speed.push(s); });
+    cut(/\buntil\s+(\d{1,2})(?:\s+miles?)?\b/gi, (m, d) => el.miles.push(d));
+    // route tokens: remaining caps tokens
+    const words = t.replace(/[(){}\[\]"]/g, ' ').split(/[\s,.;:!?]+/).filter(Boolean);
+    for (let wi = 0; wi < words.length; wi++) {
+      const w = words[wi];
+      if (!/^[A-Z]{1,2}\d{0,2}$/.test(w)) continue;
+      if (STOP.has(w)) continue;
+      if (/^(gates?|concourse|terminal|satellite|pier)$/i.test(words[wi + 1] || '')) continue;
+      el.route.push(w);
+    }
+    return el;
+  }
+  function elementKeys(el) {
+    const k = [];
+    el.route.forEach(r => k.push('route:' + r));
+    el.hold.forEach(h => k.push('hold:' + h));
+    el.cross.forEach(c => k.push('cross:' + c));
+    el.runways.forEach(r => k.push('rwy:' + r));
+    if (el.land) k.push('land'); if (el.takeoff) k.push('takeoff'); if (el.luaw) k.push('luaw');
+    el.speed.forEach(s => k.push('spd:' + s)); el.alt.forEach(a => k.push('alt:' + a));
+    if (el.gate) k.push('gate:' + el.gate); if (el.spot) k.push('spot:' + el.spot);
+    el.freqs.forEach(f => k.push('freq:' + freqDigits(f)));
+    return k;
+  }
+  function isInstruction(el) {
+    return !!(el.route.length || el.hold.length || el.cross.length || el.land || el.takeoff || el.luaw || el.gate || el.spot || el.speed.length || el.alt.length);
+  }
+  function isMovement(el) { return !!(el.route.length || el.hold.length || el.cross.length || el.land || el.takeoff || el.luaw || el.gate || el.spot); }
+
+  function checkReadback(atcEl, rbEl, hasRb) {
+    if (!isInstruction(atcEl) && !atcEl.freqs.length) return { status: 'info', label: 'No readback needed', missing: [], severity: 'none' };
+    const critical = atcEl.hold.length || atcEl.cross.length || atcEl.land || atcEl.takeoff || atcEl.luaw;
+    if (!hasRb) return { status: 'none', label: 'No readback in transcript', missing: [], severity: critical ? 'high' : 'low' };
+    const missing = [];
+    // route: ordered multiset compare
+    const rb = rbEl.route.slice();
+    for (const r of atcEl.route) { const i = rb.indexOf(r); if (i < 0) missing.push('taxiway ' + r); else rb.splice(i, 1); }
+    for (const h of atcEl.hold) if (!rbEl.hold.includes(h)) missing.push('hold short of ' + (h.startsWith('RWY') ? 'Runway ' + h.slice(4) : h));
+    for (const c of atcEl.cross) if (!rbEl.cross.includes(c) && !rbEl.runways.includes(c)) missing.push('cross Runway ' + c.slice(4));
+    const rbR = rbEl.runways.concat(rbEl.cross, rbEl.hold.filter(h => h.startsWith('RWY')));
+    for (const r of atcEl.runways) if (!rbR.includes(r)) missing.push('Runway ' + r.slice(4));
+    if (atcEl.land && !rbEl.land) missing.push('cleared to land');
+    if (atcEl.takeoff && !rbEl.takeoff) missing.push('cleared for takeoff');
+    if (atcEl.luaw && !rbEl.luaw) missing.push('line up and wait');
+    for (const s of atcEl.speed) if (!rbEl.speed.includes(s) && !rbEl.route.includes(s)) missing.push('speed ' + s);
+    for (const a of atcEl.alt) if (!rbEl.alt.includes(a)) missing.push('altitude ' + a);
+    for (const f of atcEl.freqs) if (!rbEl.freqs.some(g => freqMatch(f, g))) missing.push('frequency ' + f.replace(/^\./, 'point '));
+    if (atcEl.gate && rbEl.gate !== atcEl.gate) missing.push('gate ' + atcEl.gate);
+    if (atcEl.spot && rbEl.spot !== atcEl.spot) missing.push('spot ' + atcEl.spot);
+    if (atcEl.cond && !rbEl.cond) missing.push('the conditional (behind or follow)');
+    if (!missing.length) return { status: 'match', label: 'Readback matches', missing, severity: 'none' };
+    const high = missing.some(x => /hold short|Runway|cleared|line up/.test(x)) || missing.some(x => x.startsWith('taxiway'));
+    return { status: 'partial', label: 'Readback missing ' + missing.join(', '), missing, severity: high ? 'high' : 'low' };
+  }
+
+  // ---------------- transcript parsing ----------------
+  const TIME_RE = /\[?\b([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?(?![0-9])(?:\s*([AaPp]\.?[Mm]\.?))?(?:\s*(?:Z|UTC|CT|CST|CDT|ET|EST|EDT|PT|PST|PDT|MT|MST|MDT|local)\b)?\]?/;
+  const DAY_PREFIX = /^(?:today|yesterday|(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)[\s,]*(?:at\s+)?$/i;
+  const timeAtStart = (x, tm) => tm && (tm.index < 4 || DAY_PREFIX.test(x.slice(0, tm.index).trim() + ' '));
+  const tmSec = (tm) => { let h = +tm[1]; const ap = (tm[4] || '').toLowerCase().replace(/\./g, ''); if (ap === 'pm' && h < 12) h += 12; if (ap === 'am' && h === 12) h = 0; return h * 3600 + (+tm[2]) * 60 + (+(tm[3] || 0)); };
+  const FREQ_RE = /\b(1[1-3]\d\.\d{1,3})\b/;
+
+  function parseTranscript(text, cs) {
+    const lines = String(text || '').replace(/\r/g, '').split('\n');
+    const tx = []; const excluded = []; const headers = [];
+    let block = 0; let ctx = { time: null, facility: '', freq: '', timeUnknown: false };
+    let last = null; let prevHeader = false; let lastOursSpeaker = null; let lastOursBlock = -1;
+    const isHeaderLine = (l) => { let x = l.trim(); if (!x) return false; const tm0 = x.match(TIME_RE); const unk = /time not captured|time unknown|no time/i.test(x); if (timeAtStart(x, tm0)) x = x.slice(tm0.index + tm0[0].length); x = x.replace(/\(?\s*(time not captured|time unknown|no time)\s*\)?/i, ''); return !findCallsigns(x, cs).length && (FREQ_RE.test(x) || timeAtStart(l.trim(), tm0) || unk) && x.trim().split(/\s+/).length <= 8 && !/[,.]\s*\w+.*[,.]/.test(x); };
+    const firstHeader = lines.findIndex(isHeaderLine);
+    let li = -1;
+    for (let raw of lines) {
+      li++;
+      if (firstHeader > 0 && li < firstHeader) { if (raw.trim()) excluded.push({ text: raw.trim(), reason: 'Heading text before the first frequency or time line', time: null, block: 0 }); continue; }
+      let line = raw.trim();
+      if (!line) { block++; last = null; prevHeader = false; continue; }
+      const wasHeader = prevHeader; prevHeader = false;
+      let time = null; let tm = line.match(TIME_RE);
+      let unknownTime = /time not captured|time unknown|no time/i.test(line);
+      if (timeAtStart(line, tm)) { time = tmSec(tm); line = line.slice(tm.index + tm[0].length).replace(/^[\s\-|:\]]+/, ''); }
+      if (unknownTime) line = line.replace(/\(?\s*(time not captured|time unknown|no time)\s*\)?/i, '').trim();
+      const calls = findCallsigns(line, cs);
+      const words = line.split(/\s+/).filter(Boolean);
+      const fm = line.match(FREQ_RE);
+      const looksHeader = !calls.length && (fm || time !== null || unknownTime) && words.length <= 8 && !/[,.]\s*\w+.*[,.]/.test(line);
+      if (looksHeader || (!line && (time !== null || unknownTime))) {
+        const fac = line.replace(FREQ_RE, '').replace(/[-|:\u2022\u00b7]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (wasHeader) { // a second header line right after the first: fill in what it adds
+          if (time !== null) { ctx.time = time; ctx.timeUnknown = false; } else if (unknownTime) ctx.timeUnknown = true;
+          if (fac) ctx.facility = fac; if (fm) ctx.freq = fm[1];
+          headers[headers.length - 1] = Object.assign({}, ctx);
+        } else {
+          block++; last = null;
+          ctx = { time, timeUnknown: unknownTime && time === null, facility: fac, freq: fm ? fm[1] : '' };
+          headers.push(Object.assign({}, ctx));
+        }
+        prevHeader = true;
+        continue;
+      }
+      if (!line) continue;
+      // explicit speaker label "Label: text"
+      let speaker = null; const lab = line.match(/^([A-Za-z0-9 .'/-]{2,32}):\s+(.*)$/);
+      let body = line;
+      if (lab && lab[1].split(/\s+/).length <= 4) {
+        const L = lab[1].toLowerCase();
+        const lc = findCallsigns(wordsToDigits(lab[1]), cs);
+        if (lc.some(c => c.ours) || /^(pilot|aircraft|crew|plane)$/.test(L) || L.replace(/\s/g, '') === cs.raw.toLowerCase()) { speaker = 'pilot'; body = lab[2]; }
+        else if (FACILITY_WORDS.some(w => L.includes(w))) { speaker = 'atc'; body = lab[2]; }
+      }
+      const orig = body;
+      body = wordsToDigits(body);
+      let lineFreq = '', lineFac = '';
+      if (speaker === 'atc' && lab) { const lf = lab[1].match(FREQ_RE); if (lf) lineFreq = lf[1]; lineFac = lab[1].replace(FREQ_RE, '').trim(); }
+      const bodyCalls = findCallsigns(body, cs);
+      const ours = bodyCalls.filter(c => c.ours);
+      const t = time !== null ? time : ctx.time;
+      const base = { time: t, timeFromHeader: time === null, timeUnknown: time === null && ctx.timeUnknown, facility: lineFac || ctx.facility, freq: lineFreq || ctx.freq, block, raw: raw.trim(), orig };
+      if (!ours.length) {
+        const sim = bodyCalls.find(c => c.similar);
+        if (sim) { excluded.push(Object.assign({ text: body, reason: 'Similar callsign (' + sim.text.trim() + '), a different aircraft' }, base)); last = null; continue; }
+        if (bodyCalls.length) { excluded.push(Object.assign({ text: body, reason: 'Another aircraft (' + bodyCalls[0].text.trim() + ')' }, base)); last = null; continue; }
+        // no callsign. A wrapped line (starts lower case) continues the previous transmission;
+        // a new sentence in a block that is already talking to us is side talk, kept as a note.
+        if (last && last.block === block && /^[a-z]/.test(orig.trim())) { last.text += ' ' + body; last.orig += ' ' + orig; last.continued = true; continue; }
+        if (last && last.block === block) { tx.push(Object.assign({ speaker: speaker || 'unknown', text: body, aside: true }, base)); continue; }
+        excluded.push(Object.assign({ text: body, reason: 'No callsign, could not tell who it was for' }, base));
+        continue;
+      }
+      if (!speaker) {
+        const first = body.split(',')[0].trim().toLowerCase();
+        const c0 = ours[0];
+        const startsFacility = c0.index > 0 && FACILITY_WORDS.some(w => first.includes(w)) && !findCallsigns(first, cs).length;
+        const pre = body.slice(0, c0.index).replace(/[\s,]+$/, '').trim().toLowerCase();
+        const atStart = c0.index <= 3 || /^(hey|hi|hello|ok|okay|and|uh|um|alright|all right)$/.test(pre);
+        if (pre && FACILITY_WORDS.some(w => new RegExp('\\b' + w + '\\b').test(pre)) && !/\b(contact|monitor|call)\b/.test(pre)) speaker = 'pilot';
+        const atEnd = body.slice(ours[ours.length - 1].end).replace(/[\s.,!]|good night|good day|thanks|thank you|bye/gi, '').length === 0;
+        if (speaker) { /* set from the words before the callsign */ }
+        else if (startsFacility) speaker = 'pilot';
+        else if (atStart && !atEnd) speaker = 'atc';
+        else if (atEnd) speaker = 'pilot';
+        else if (atStart) speaker = 'atc';
+        else speaker = (lastOursSpeaker === 'atc' && lastOursBlock === block) ? 'pilot' : 'atc';
+      }
+      const seg0 = body.split(',')[0].trim().toLowerCase();
+      const initial = speaker === 'pilot' && !/\b(switching|over|going|contact|to)\b/.test(seg0) && seg0.split(/\s+/).length <= 4 && FACILITY_WORDS.some(w => seg0.includes(w)) && body.split(',').length > 1 && !findCallsigns(body.split(',')[0], cs).length
+        || speaker === 'pilot' && /^(hey|hi|hello|good (morning|afternoon|evening)|morning)?\s*[a-z]*\s*(tower|ground|ops|ramp|approach|departure|center|clearance|delivery)\b/i.test(body.trim()) && !/^(switching|over)/i.test(body.trim()) && !(lastOursSpeaker === 'atc' && lastOursBlock === block);
+      const rec = Object.assign({ speaker, text: body, initial }, base);
+      tx.push(rec); last = rec; lastOursSpeaker = speaker; lastOursBlock = block;
+    }
+    return { transmissions: tx, excluded, headers };
+  }
+
+  function buildSteps(parsed, cs) {
+    const steps = []; let open = null; let pendingPilot = [];
+    const mk = (o) => { const s = Object.assign({ id: steps.length, atc: '', readback: '', pilotCalls: [], notes: [], asides: [] }, o); steps.push(s); return s; };
+    for (const tr of parsed.transmissions) {
+      if (tr.aside) { if (steps.length) steps[steps.length - 1].asides.push(tr.orig); continue; }
+      const el = extractElements(tr.text, cs);
+      if (tr.speaker === 'atc') {
+        if (open && open.kind === 'atc' && open.block === tr.block && !open.readback && !pendingPilot.length) {
+          open.atc += ' ... ' + tr.orig; open.atcNorm += ' ... ' + tr.text; open.atcEl = extractElements(open.atcNorm, cs); continue;
+        }
+        open = mk({ kind: 'atc', time: tr.time, timeFromHeader: tr.timeFromHeader, timeUnknown: tr.timeUnknown, facility: tr.facility, freq: tr.freq, block: tr.block, atc: tr.orig, atcNorm: tr.text, atcEl: el, pilotCalls: pendingPilot.map(p => p.orig) });
+        pendingPilot = [];
+        continue;
+      }
+      // pilot
+      if (tr.initial) { pendingPilot.push(tr); continue; }
+      if (open && open.block === tr.block && !open.readback) {
+        const ak = elementKeys(open.atcEl).filter(k => !k.startsWith('freq'));
+        const pk = elementKeys(el).filter(k => !k.startsWith('freq'));
+        const overlap = pk.filter(k => ak.includes(k)).length;
+        if (!(isMovement(el) && ak.length && pk.length && overlap === 0)) { open.readback = tr.orig; open.rbEl = el; continue; }
+      }
+      if (isInstruction(el)) {
+        open = mk({ kind: 'readbackOnly', time: tr.time, timeFromHeader: tr.timeFromHeader, timeUnknown: tr.timeUnknown || tr.time === null, facility: tr.facility, freq: tr.freq, block: tr.block, atc: '', atcEl: el, readback: tr.orig, rbEl: el, pilotCalls: pendingPilot.map(p => p.orig) });
+        pendingPilot = [];
+        continue;
+      }
+      if (steps.length) steps[steps.length - 1].notes.push(tr.orig); else pendingPilot.push(tr);
+    }
+    const hdrFreqs = (parsed.headers || []).map(h => h.freq).filter(Boolean);
+    const fullFreq = (f) => { if (!/^\./.test(f)) return f; const c = dedupe(hdrFreqs.filter(h => freqMatch(h, f) && freqDigits(h).length > freqDigits(f).length)); return c.length === 1 ? c[0] : f; };
+    for (const s of steps) {
+      if (s.atcEl) s.atcEl.freqs = s.atcEl.freqs.map(fullFreq);
+      s.company = /\b(ops|operations|airline|company|dispatch)\b/i.test(s.facility || '');
+      if (s.company) {
+        s.check = { status: 'info', label: 'Company frequency, no readback needed', missing: [], severity: 'none' };
+        s.el = s.atcEl; s.movement = false; s.title = s.el.gate ? 'Company: gate ' + s.el.gate : 'Company call'; continue;
+      }
+      if (s.kind === 'readbackOnly') s.check = { status: 'nocapture', label: 'Instruction not captured, only the readback', missing: [], severity: 'low' };
+      else s.check = checkReadback(s.atcEl, s.rbEl || extractElements('', cs), !!s.readback);
+      // "Switching Tower" acknowledges a handoff even without the numbers
+      if (s.check.status === 'partial' && s.check.missing.every(m => m.startsWith('frequency')) && /\b(switching|over to|going to)\b|\b(tower|ground|approach|departure|center|ramp)\b/i.test(s.readback || '')) {
+        s.check = { status: 'match', label: 'Handoff acknowledged (frequency not read back)', missing: [], severity: 'none' };
+      }
+      s.el = s.kind === 'readbackOnly' ? s.rbEl : s.atcEl;
+      s.movement = isMovement(s.el);
+      s.title = stepTitle(s);
+    }
+    return steps;
+  }
+  function stepTitle(s) {
+    const e = s.el; const parts = [];
+    if (e.land) parts.push('Cleared to land' + (e.runways[0] ? ' Runway ' + e.runways[0].slice(4) : ''));
+    if (e.takeoff) parts.push('Cleared for takeoff' + (e.runways[0] ? ' Runway ' + e.runways[0].slice(4) : ''));
+    if (e.luaw) parts.push('Line up and wait');
+    if (e.cross.length) parts.push('Cross ' + e.cross.map(c => 'Runway ' + c.slice(4)).join(', '));
+    const turnAt = (s.atcNorm || s.readback || '').match(/\bturn (left|right)\b|\b(left|right) turn\b/i);
+    s.turnAt = e.route.length === 1 && turnAt && !/\bvia\b/i.test(s.atcNorm || '') ? (turnAt[1] || turnAt[2]).toLowerCase() : null;
+    if (s.turnAt) parts.push('Turn ' + (turnAt[1] || turnAt[2]).toLowerCase() + ' at ' + e.route[0]);
+    else if (e.route.length) parts.push('Taxi via ' + dedupe(e.route).join(', '));
+    if (e.hold.length) parts.push('Hold short of ' + dedupe(e.hold).map(h => h.startsWith('RWY') ? 'Runway ' + h.slice(4) : h).join(', '));
+    if (e.spot) parts.push('Spot ' + e.spot);
+    if (e.gate) parts.push('Gate ' + e.gate);
+    if (e.speed.length) parts.push('Speed ' + dedupe(e.speed).join(', ') + ' kt');
+    if (e.alt.length) parts.push('Altitude ' + e.alt.join(', '));
+    if (!parts.length && e.freqs.length) parts.push('Frequency change');
+    if (!parts.length) parts.push('Coordination');
+    return parts.join('; ');
+  }
+  function dedupe(a) { return a.filter((x, i) => a.indexOf(x) === i); }
+
+  // ---------------- ADS-B parsing ----------------
+  function splitCSVLine(line, d) {
+    const out = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) { if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else if (c === '"') q = true; else if (c === d) { out.push(cur); cur = ''; } else cur += c;
+    }
+    out.push(cur); return out.map(s => s.trim());
+  }
+  function parseTime(v) {
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (/^\d{9,13}(\.\d+)?$/.test(s)) { const n = +s; return n > 1e12 ? n / 1000 : n; }
+    let d = Date.parse(s);
+    if (isNaN(d) && /^\d{4}-\d{2}-\d{2} \d/.test(s)) d = Date.parse(s.replace(' ', 'T') + 'Z');
+    else if (!isNaN(d) && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s)) d = Date.parse(s.replace(' ', 'T') + 'Z');
+    return isNaN(d) ? null : d / 1000;
+  }
+  function parseCSV(text) {
+    const lines = String(text).replace(/\r/g, '').split('\n').filter(l => l.trim());
+    if (lines.length < 2) throw new Error('The CSV file has no data rows.');
+    const h0 = lines[0];
+    const d = [',', ';', '\t', '|'].map(c => [c, h0.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
+    const head = splitCSVLine(h0, d).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const find = (...names) => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
+    const iT = find('timestamp', 'time', 'unixtime', 'epoch', 'timeposition', 'seenpos', 'datetime', 'utc', 'date');
+    const iUTC = find('utc', 'datetime', 'iso', 'timeutc');
+    const iLat = find('lat', 'latitude', 'y'); const iLon = find('lon', 'lng', 'long', 'longitude', 'x');
+    const iPos = find('position', 'latlon', 'latlng', 'coords', 'coordinates');
+    const iAlt = find('altitude', 'alt', 'altbaro', 'altitudeft', 'baroaltitude', 'altgeom', 'geoaltitude', 'alt_baro');
+    const iGs = find('speed', 'gs', 'groundspeed', 'speedkt', 'spd', 'velocity', 'gspeed');
+    const iHdg = find('direction', 'track', 'heading', 'truetrack', 'hdg', 'course', 'trk');
+    const iGnd = find('onground', 'ground', 'gnd', 'airground', 'isonground');
+    const iCs = find('callsign', 'flight', 'ident', 'call');
+    const velocityIsMs = head[iGs] === 'velocity';
+    if ((iLat < 0 || iLon < 0) && iPos < 0) throw new Error('Could not find latitude and longitude columns. Expected headers like lat, lon or Position.');
+    const pts = []; let callsign = '';
+    for (let r = 1; r < lines.length; r++) {
+      const c = splitCSVLine(lines[r], d);
+      let lat, lon;
+      if (iLat >= 0 && iLon >= 0) { lat = parseFloat(c[iLat]); lon = parseFloat(c[iLon]); }
+      else { const p = (c[iPos] || '').split(/[,\s]+/).map(parseFloat); lat = p[0]; lon = p[1]; }
+      if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
+      let t = iT >= 0 ? parseTime(c[iT]) : null; if (t == null && iUTC >= 0) t = parseTime(c[iUTC]);
+      const altRaw = iAlt >= 0 ? c[iAlt] : '';
+      let alt = parseFloat(String(altRaw).replace(/,/g, ''));
+      let gnd = null;
+      if (/ground|gnd/i.test(altRaw)) { gnd = true; alt = 0; }
+      if (iGnd >= 0) { const g = String(c[iGnd]).toLowerCase(); gnd = /^(1|true|t|yes|y|ground|gnd|g)$/.test(g); }
+      let gs = iGs >= 0 ? parseFloat(c[iGs]) : NaN; if (velocityIsMs && isFinite(gs)) gs = gs / 0.5144;
+      const hdg = iHdg >= 0 ? parseFloat(c[iHdg]) : NaN;
+      if (!callsign && iCs >= 0 && c[iCs]) callsign = c[iCs].trim();
+      pts.push({ t, lat, lon, alt: isFinite(alt) ? alt : null, gs: isFinite(gs) ? gs : null, hdg: isFinite(hdg) ? hdg : null, gnd });
+    }
+    return finishTrack(pts, callsign, 'csv');
+  }
+  function parseKML(text) {
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('The KML file is not valid XML.');
+    const byTag = (el, tag) => Array.from(el.getElementsByTagNameNS('*', tag));
+    const pts = []; let callsign = '';
+    const nm = byTag(doc, 'name')[0]; if (nm) callsign = (nm.textContent.match(/\b[A-Z]{3}\d{1,4}[A-Z]?\b/) || [''])[0];
+    // gx:Track
+    for (const tr of byTag(doc, 'Track')) {
+      const whens = byTag(tr, 'when').map(w => parseTime(w.textContent));
+      const coords = byTag(tr, 'coord').map(c => c.textContent.trim().split(/\s+/).map(parseFloat));
+      coords.forEach((c, i) => pts.push({ t: whens[i] ?? null, lat: c[1], lon: c[0], alt: isFinite(c[2]) ? c[2] * 3.28084 : null, gs: null, hdg: null, gnd: null }));
+    }
+    if (!pts.length) {
+      for (const pm of byTag(doc, 'Placemark')) {
+        const pt = byTag(pm, 'Point')[0]; if (!pt) continue;
+        const co = (byTag(pt, 'coordinates')[0] || {}).textContent; if (!co) continue;
+        const c = co.trim().split(',').map(parseFloat);
+        const w = byTag(pm, 'when')[0];
+        const desc = ((byTag(pm, 'description')[0] || {}).textContent || '') + ' ' + ((byTag(pm, 'name')[0] || {}).textContent || '');
+        const sp = desc.match(/(?:speed|gs)\D{0,12}(\d{1,3})\s*(kt|kts|knots)?/i) || desc.match(/(\d{1,3})\s*(kt|kts|knots)\b/i);
+        const hd = desc.match(/(?:heading|track|direction)\D{0,12}(\d{1,3})/i);
+        const al = desc.match(/(?:altitude|alt)\D{0,12}([\d,]+)\s*ft/i);
+        if (!callsign) callsign = (desc.match(/\b[A-Z]{3}\d{1,4}[A-Z]?\b/) || [''])[0];
+        pts.push({ t: w ? parseTime(w.textContent) : null, lat: c[1], lon: c[0], alt: al ? +al[1].replace(/,/g, '') : (isFinite(c[2]) ? c[2] * 3.28084 : null), gs: sp ? +sp[1] : null, hdg: hd ? +hd[1] : null, gnd: /on ground|ground/i.test(desc) ? true : null });
+      }
+    }
+    if (!pts.length) {
+      for (const ls of byTag(doc, 'LineString')) {
+        const co = (byTag(ls, 'coordinates')[0] || {}).textContent || '';
+        co.trim().split(/\s+/).forEach(s => { const c = s.split(',').map(parseFloat); if (isFinite(c[0]) && isFinite(c[1])) pts.push({ t: null, lat: c[1], lon: c[0], alt: isFinite(c[2]) ? c[2] * 3.28084 : null, gs: null, hdg: null, gnd: null }); });
+      }
+    }
+    if (!pts.length) throw new Error('No track points found in the KML. Expected a gx:Track, a LineString or point placemarks.');
+    return finishTrack(pts, callsign, 'kml');
+  }
+  function finishTrack(pts, callsign, kind) {
+    const hasTime = pts.filter(p => p.t != null).length >= pts.length * 0.8;
+    if (hasTime) pts = pts.filter(p => p.t != null).sort((a, b) => a.t - b.t);
+    // drop exact duplicates
+    pts = pts.filter((p, i) => i === 0 || !(p.t === pts[i - 1].t && p.lat === pts[i - 1].lat && p.lon === pts[i - 1].lon));
+    // computed speed where missing (knots), smoothed over ~20 s
+    if (hasTime) {
+      for (let i = 0; i < pts.length; i++) {
+        if (pts[i].gs != null) continue;
+        let a = i, b = i;
+        while (a > 0 && pts[i].t - pts[a - 1].t <= 10) a--;
+        while (b < pts.length - 1 && pts[b + 1].t - pts[i].t <= 10) b++;
+        if (b === a) { pts[i].gsCalc = null; continue; }
+        let d = 0; for (let k = a; k < b; k++) d += distM(pts[k], pts[k + 1]);
+        pts[i].gsCalc = d / (pts[b].t - pts[a].t) / 0.5144;
+      }
+    }
+    pts.forEach(p => { p.v = p.gs != null ? p.gs : (p.gsCalc != null ? p.gsCalc : null); });
+    // ground detection when no flag: low altitude relative to the minimum and slow
+    const alts = pts.map(p => p.alt).filter(a => a != null);
+    const minAlt = alts.length ? Math.min(...alts) : null;
+    pts.forEach(p => { if (p.gnd == null) p.gnd = (p.alt != null && minAlt != null && p.alt <= minAlt + 60 && (p.v == null || p.v < 160)) || (p.alt == null && p.v != null && p.v < 50); });
+    return { points: pts, hasTime, callsign: callsign || '', kind };
+  }
+  function detectStops(pts, opts) {
+    opts = Object.assign({ maxKt: 2.5, minSec: 15 }, opts || {});
+    const stops = []; let s = null;
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i]; const slow = p.gnd && p.v != null && p.v <= opts.maxKt;
+      if (slow) { if (!s) s = { i0: i, i1: i }; else s.i1 = i; }
+      if ((!slow || i === pts.length - 1) && s) {
+        const a = pts[s.i0], b = pts[s.i1];
+        const t0 = s.i0 > 0 ? (pts[s.i0 - 1].t + a.t) / 2 : a.t;
+        const t1 = (!slow && i > s.i1) ? (b.t + pts[i].t) / 2 : b.t;
+        if (t1 - t0 >= opts.minSec) {
+          let la = 0, lo = 0; for (let k = s.i0; k <= s.i1; k++) { la += pts[k].lat; lo += pts[k].lon; }
+          const n = s.i1 - s.i0 + 1;
+          stops.push({ t0, t1, dur: t1 - t0, lat: la / n, lon: lo / n, i0: s.i0, i1: s.i1, last: s.i1 === pts.length - 1 });
+        }
+        s = null;
+      }
+    }
+    return stops;
+  }
+  function landingIndex(pts) {
+    for (let i = 1; i < pts.length; i++) if (pts[i].gnd && !pts[i - 1].gnd) return i;
+    return pts.findIndex(p => p.gnd);
+  }
+  // Keep only the part of a whole-flight track that is near the diagram's airport.
+  // Picks the run of points within radiusM of center that has the most ground points.
+  function trimToAirport(track, center, radiusM) {
+    radiusM = radiusM || 30000;
+    const pts = track.points; if (!pts.length || !center) return track;
+    const runs = []; let cur = null;
+    for (let i = 0; i < pts.length; i++) {
+      const inside = distM(pts[i], center) <= radiusM;
+      const gap = cur && track.hasTime && pts[i].t - pts[i - 1].t > 1800;
+      if (inside && cur && !gap) cur.i1 = i;
+      else if (inside) { cur = { i0: i, i1: i }; runs.push(cur); }
+      else cur = null;
+    }
+    if (!runs.length) return Object.assign({}, track, { trim: { none: true, total: pts.length } });
+    runs.forEach(r => { r.g = 0; for (let k = r.i0; k <= r.i1; k++) if (pts[k].gnd) r.g++; r.n = r.i1 - r.i0 + 1; });
+    runs.sort((a, b) => b.g - a.g || b.n - a.n || b.i0 - a.i0);
+    const r = runs[0];
+    if (r.i0 === 0 && r.i1 === pts.length - 1) return track;
+    return Object.assign({}, track, { points: pts.slice(r.i0, r.i1 + 1), trim: { kept: r.n, total: pts.length, radiusM } });
+  }
+
+  // ---------------- time alignment ----------------
+  function chooseTzOffset(steps, track, preferredHours) {
+    const timed = steps.filter(s => s.time != null);
+    if (!track.hasTime || !timed.length) return { offset: preferredHours, score: 0, auto: false };
+    const t0 = track.points[0].t, t1 = track.points[track.points.length - 1].t;
+    let best = null;
+    for (let o = -12; o <= 14; o += 0.5) {
+      const abs = timed.map(s => toAbs(s.time, o, t0, t1));
+      const inside = abs.filter(a => a >= t0 - 900 && a <= t1 + 900).length;
+      const spread = abs.reduce((m, a) => m + Math.min(Math.abs(a - t0), Math.abs(a - t1), (a >= t0 && a <= t1) ? 0 : 1e9), 0);
+      const sc = [inside, o === preferredHours ? 1 : 0, Number.isInteger(o) ? 1 : 0, -spread];
+      if (!best || cmp(sc, best.sc) > 0) best = { offset: o, sc };
+    }
+    return { offset: best.offset, score: best.sc[0], auto: true, of: timed.length };
+  }
+  function cmp(a, b) { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]; return 0; }
+  function toAbs(sod, offsetHours, t0, t1) {
+    const mid = (t0 + t1) / 2; const day0 = Math.floor(mid / 86400) * 86400;
+    const base = sod - offsetHours * 3600;
+    let best = null;
+    for (let k = -2; k <= 2; k++) { const a = day0 + k * 86400 + base; if (best == null || Math.abs(a - mid) < Math.abs(best - mid)) best = a; }
+    return best;
+  }
+
+  // ---------------- analysis per step ----------------
+  function analyse(flight) {
+    const steps = flight.steps; const tr = flight.track;
+    if (!tr) { steps.forEach(s => { s.abs = null; s.win = null; }); return; }
+    const pts = tr.points; const stops = tr.hasTime ? detectStops(pts) : [];
+    flight.stops = stops;
+    if (!tr.hasTime) { steps.forEach(s => { s.abs = null; s.win = null; }); return; }
+    const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+    steps.forEach(s => { s.abs = s.time != null && !s.timeUnknown ? toAbs(s.time, flight.tzOffset, t0, t1) : null; s.timeEstimated = false; });
+    // one header time often covers a whole block of calls. A taxi call that shares the landing
+    // clearance's time cannot have come before touchdown, so move it to just after touchdown.
+    const li = landingIndex(pts);
+    if (li > 0) {
+      const td = pts[li].t;
+      for (let i = 1; i < steps.length; i++) {
+        const s = steps[i], p = steps[i - 1];
+        if (s.abs == null || !s.timeFromHeader || p.abs !== s.abs || p.block !== s.block) continue;
+        if (!(p.el && p.el.land) || (s.el && (s.el.land || s.el.takeoff))) continue;
+        if (td + 10 > s.abs) { s.abs = td + 10; s.timeEstimated = true; s.timeEstimateBasis = 'just after touchdown at ' + clock(td, flight.tzOffset) + ', because the transcript gives one time for the whole block'; }
+      }
+    }
+    // a later call in the same block only inherits the block's time, so its real time is unknown: estimate it below
+    for (let i = 1; i < steps.length; i++) {
+      const s = steps[i];
+      if (s.abs != null && s.timeFromHeader && !s.timeEstimated && s.block === steps[i - 1].block) s.abs = null;
+    }
+    // header times are to the minute and belong to the first call of their block. A step cannot come
+    // before the step above it, so move it forward inside its minute; after touchdown, to when the
+    // aircraft has slowed to taxi speed if it is still rolling fast.
+    for (let i = 1; i < steps.length; i++) {
+      const s = steps[i]; let p = i - 1; while (p >= 0 && steps[p].abs == null) p--;
+      if (p < 0 || s.abs == null || !s.timeFromHeader || s.timeEstimated) continue;
+      const prev = steps[p].abs; if (s.abs >= prev) continue;
+      const T = s.abs; if (prev - T >= 60) continue;
+      let t = prev + 5;
+      if (li > 0 && t > pts[li].t && s.block !== steps[p].block) {
+        const k = pts.findIndex(q => q.t >= t && q.gnd && q.v != null && q.v <= 30);
+        if (k >= 0 && pts[k].t < T + 60) t = pts[k].t;
+      }
+      t = Math.min(t, T + 59);
+      s.abs = t; s.timeEstimated = true;
+      s.timeEstimateBasis = 'because the transcript gives ' + clock(T, flight.tzOffset).slice(0, 5) + ' to the minute and this call came after the one above it' + (li > 0 && t > pts[li].t ? ', so it is placed when the aircraft had slowed to taxi speed' : '');
+    }
+    // estimate untimed steps: end of the first stop after the previous timed step, else midpoint
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i].abs != null) continue;
+      let p = i - 1; while (p >= 0 && steps[p].abs == null) p--;
+      let n = i + 1; while (n < steps.length && steps[n].abs == null) n++;
+      const lo = p >= 0 ? steps[p].abs : t0, hi = n < steps.length ? steps[n].abs : t1;
+      const st = stops.find(x => x.t0 >= lo - 5 && x.t1 <= hi + 5 && !x.last);
+      steps[i].abs = st ? st.t1 : (lo + hi) / 2; steps[i].timeEstimated = true;
+      steps[i].timeEstimateBasis = st ? 'when the aircraft started moving after the stop at ' + clock(st.t0, flight.tzOffset) : 'halfway between the steps around it';
+    }
+    // windows
+    const order = steps.map((s, i) => i).sort((a, b) => steps[a].abs - steps[b].abs || a - b);
+    const anyMove = steps.some(x => x.movement);
+    const cuts = order.filter(i => !anyMove || steps[i].movement);
+    order.forEach((idx, k) => {
+      const s = steps[idx];
+      const cutter = !anyMove || s.movement;
+      const nx = cutter ? cuts[cuts.indexOf(idx) + 1] : null;
+      const a = s.abs, b = cutter ? (nx != null ? steps[nx].abs : t1) : s.abs;
+      s.win = [a, Math.max(a, b)];
+      const ids = []; for (let i = 0; i < pts.length; i++) if (pts[i].t >= a && pts[i].t <= b) ids.push(i);
+      // include the boundary point before so segments join
+      if (ids.length && ids[0] > 0) ids.unshift(ids[0] - 1);
+      s.ptIdx = ids;
+      let d = 0; for (let i = 1; i < ids.length; i++) { const p0 = pts[ids[i - 1]], p1 = pts[ids[i]]; if (p0.v != null && p1.v != null && p0.v <= 2.5 && p1.v <= 2.5) continue; d += distM(p0, p1); }
+      s.airborne = ids.filter(i => !pts[i].gnd).length > ids.length / 2;
+      s.dist = d; s.dur = b - a;
+      s.stops = stops.filter(x => x.t1 > a && x.t0 < b);
+      s.onGround = ids.some(i => pts[i].gnd);
+    });
+    // hold short and crossing checks
+    steps.forEach((s, i) => {
+      s.flags = [];
+      const nextMove = order.map(j => steps[j]).find(x => x.abs > s.abs + 1 && x.movement && (x.el.route.length || x.el.cross.length || x.el.gate || x.el.spot));
+      if (s.el.hold.length) {
+        const limit = nextMove ? nextMove.abs + 30 : t1;
+        const st = stops.find(x => x.t0 >= s.abs - 10 && x.t0 <= limit);
+        if (st) s.flags.push({ kind: 'hold', ok: true, stop: st, text: 'Stopped for ' + fmtDur(st.dur) + ' from ' + clock(st.t0, flight.tzOffset) + ', the likely hold-short point for ' + s.el.hold.map(h => h.startsWith('RWY') ? 'Runway ' + h.slice(4) : h).join(', ') + '.' });
+        else s.flags.push({ kind: 'hold', ok: false, text: 'No stop of 15 s or more in the ADS-B after this hold-short instruction. Check whether the aircraft held short.' });
+      }
+      if (s.el.cross.length) {
+        const after = pts.findIndex(p => p.t >= s.abs - 5 && p.v != null && p.v > 3 && p.gnd);
+        if (after >= 0) {
+          const seg = [after]; let d = 0;
+          for (let k = after + 1; k < pts.length && d < 320; k++) { d += distM(pts[k - 1], pts[k]); seg.push(k); }
+          s.crossing = seg;
+          s.flags.push({ kind: 'cross', ok: true, text: 'Started moving at ' + clock(pts[after].t, flight.tzOffset) + '. The crossing is drawn as the first 300 m after that.' });
+        }
+      }
+    });
+    // track ends while the aircraft is still moving: the path stops short
+    const last = pts[pts.length - 1];
+    flight.trackEnd = null;
+    if (last.gnd && last.v != null && last.v > 3) {
+      const gate = (steps.map(x => x.el && x.el.gate).filter(Boolean).pop()) || (steps.map(x => x.pilotEl && x.pilotEl.gate).filter(Boolean).pop()) || '';
+      flight.trackEnd = { t: last.t, v: last.v, lat: last.lat, lon: last.lon, gate };
+      const lm = cuts.map(i => steps[i]).filter(x => x.movement).pop();
+      if (lm) lm.flags.push({ kind: 'end', ok: false, text: 'The ADS-B track ends at ' + clock(last.t, flight.tzOffset) + ' while the aircraft is still moving at ' + Math.round(last.v) + ' kt, so the path stops short' + (gate ? ' of gate ' + gate : ' of where it parked') + '.' });
+    }
+  }
+  function clock(t, offH) {
+    if (t == null) return '';
+    const d = new Date((t + offH * 3600) * 1000);
+    return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0') + ':' + String(d.getUTCSeconds()).padStart(2, '0');
+  }
+  function sodClock(sod) { if (sod == null) return ''; const h = Math.floor(sod / 3600), m = Math.floor(sod % 3600 / 60), s = sod % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + (s ? ':' + String(s).padStart(2, '0') : ''); }
+
+  // ---------------- georeference ----------------
+  function parseDMS(str) {
+    if (str == null) return null;
+    const s = String(str).trim().toUpperCase().replace(/[º˚]/g, '°').replace(/[’′]/g, "'").replace(/[”″]/g, '"');
+    if (/^[-+]?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    const m = s.match(/^([-+])?\s*(\d{1,3})(?:[°\s-]+(\d{1,2}(?:\.\d+)?)['\s]*)?(?:[-\s]*(\d{1,2}(?:\.\d+)?)["\s]*)?([NSEW])?$/);
+    if (!m) { const n = s.match(/^([NSEW])\s*(.*)$/); if (n) { const v = parseDMS(n[2] + n[1]); return v; } return null; }
+    let v = +m[2] + (m[3] ? +m[3] / 60 : 0) + (m[4] ? +m[4] / 3600 : 0);
+    if (m[1] === '-' || m[5] === 'S' || m[5] === 'W') v = -v;
+    return v;
+  }
+  function parseLatLonPair(str) {
+    const s = String(str || '').trim();
+    const dec = s.match(/^\s*([-+]?\d+(?:\.\d+)?)\s*[,\s]\s*([-+]?\d+(?:\.\d+)?)\s*$/);
+    if (dec) return { lat: +dec[1], lon: +dec[2] };
+    const m = s.toUpperCase().match(/^(.*?[NS])\s*[, ]\s*(.*?[EW])$/);
+    if (m) { const lat = parseDMS(m[1]), lon = parseDMS(m[2]); if (lat != null && lon != null) return { lat, lon }; }
+    return null;
+  }
+
+  // chart text: items are {str, cx, cy, w, h, ang} in image pixels
+  const LAT_LBL = /(\d{1,2})\s*[°º˚o]\s*(\d{1,2}(?:\.\d+)?)\s*['’′]?\s*(?:(\d{1,2}(?:\.\d+)?)\s*["”″])?\s*([NS])\b/;
+  const LON_LBL = /(\d{1,3})\s*[°º˚o]\s*(\d{1,2}(?:\.\d+)?)\s*['’′]?\s*(?:(\d{1,2}(?:\.\d+)?)\s*["”″])?\s*([EW])\b/;
+  function groupTextLines(items) {
+    const used = new Set(); const out = [];
+    const sorted = items.map((it, i) => Object.assign({ i }, it)).sort((a, b) => a.cy - b.cy || a.cx - b.cx);
+    for (const a of sorted) {
+      if (used.has(a.i)) continue; used.add(a.i);
+      let group = [a];
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const b of sorted) {
+          if (used.has(b.i) || Math.abs(b.ang - a.ang) > 0.05) continue;
+          const last = group[group.length - 1];
+          const h = Math.max(a.h, b.h, 4);
+          const dx = Math.cos(a.ang), dy = Math.sin(a.ang);
+          const relx = (b.cx - last.cx) * dx + (b.cy - last.cy) * dy; const rely = -(b.cx - last.cx) * dy + (b.cy - last.cy) * dx;
+          const gap = relx - (last.w + b.w) / 2;
+          if (Math.abs(rely) < h * 0.35 && gap > -Math.max(h * 0.3, Math.min(last.w, b.w) * 0.6) && gap < h * 0.6 && Math.hypot(b.cx - last.cx, b.cy - last.cy) > h * 0.2) { group.push(b); used.add(b.i); changed = true; }
+        }
+      }
+      if (group.length === 1) { out.push(a); continue; }
+      const str = group.map(g => g.str).join('');
+      const xs = group.map(g => g.cx), ys = group.map(g => g.cy);
+      const first = group[0], last = group[group.length - 1];
+      out.push({ str, cx: (first.cx - Math.cos(a.ang) * first.w / 2 + last.cx + Math.cos(a.ang) * last.w / 2) / 2, cy: (first.cy - Math.sin(a.ang) * first.w / 2 + last.cy + Math.sin(a.ang) * last.w / 2) / 2, w: group.reduce((m, g) => m + g.w, 0), h: Math.max(...group.map(g => g.h)), ang: a.ang, parts: group.length, members: group.map(g => g.i) });
+    }
+    return out;
+  }
+  function readChartText(items) {
+    const groups = groupTextLines(items);
+    const lines = groups.concat(items);
+    const lat = [], lon = [], taxi = [], hs = [];
+    // split labels such as "E" + "2" drawn as two text pieces: join them into one taxiway name
+    const consumed = new Set();
+    for (const g of groups) {
+      if (!g.members || g.parts > 3) continue;
+      const s0 = g.str.replace(/\s+/g, '');
+      if (/^[A-Z]{1,2}\d{1,2}$/.test(s0)) { taxi.push({ name: s0, px: g.cx, py: g.cy }); g.members.forEach(i => consumed.add(i)); }
+    }
+    const seen = new Set();
+    for (let k = 0; k < lines.length; k++) {
+      const it = lines[k];
+      const s = it.str.trim(); if (!s) continue;
+      if (k >= groups.length && consumed.has(k - groups.length)) continue;
+      const key = s + '|' + Math.round(it.cx) + '|' + Math.round(it.cy); if (seen.has(key)) continue; seen.add(key);
+      let m;
+      if ((m = s.match(LAT_LBL)) && s.length <= 16) { let v = +m[1] + +m[2] / 60 + (m[3] ? +m[3] / 3600 : 0); if (m[4] === 'S') v = -v; lat.push({ v, px: it.cx, py: it.cy, str: s }); continue; }
+      if ((m = s.match(LON_LBL)) && s.length <= 17) { let v = +m[1] + +m[2] / 60 + (m[3] ? +m[3] / 3600 : 0); if (m[4] === 'W') v = -v; lon.push({ v, px: it.cx, py: it.cy, str: s }); continue; }
+      if (/^HS\s?\d{1,2}$/.test(s)) { hs.push({ name: s.replace(/\s/, ' ').replace(/^HS(\d)/, 'HS $1'), px: it.cx, py: it.cy }); continue; }
+      if (/^[A-Z]{1,2}\d{0,2}$/.test(s) && !STOP.has(s) && (it.parts || 1) === 1) taxi.push({ name: s, px: it.cx, py: it.cy });
+    }
+    // chart edition, e.g. "EC-3, 22 FEB 2024 to 21 MAR 2024"
+    let edition = null;
+    const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+    const all = items.map(i => i.str).join(' ');
+    const em = all.match(/(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})\s+to\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})/i);
+    if (em) edition = { text: em[0], from: Date.UTC(+em[3], MON[em[2].toUpperCase()], +em[1]), to: Date.UTC(+em[6], MON[em[5].toUpperCase()], +em[4]) + 86400000 };
+    return { lat: dedupeLabels(lat), lon: dedupeLabels(lon), taxi, hotspots: hs, edition };
+  }
+  function dedupeLabels(a) { const out = []; for (const x of a) if (!out.some(y => y.v === x.v && Math.hypot(y.px - x.px, y.py - x.py) < 3)) out.push(x); return out; }
+
+  function linfit(xs, ys) {
+    const n = xs.length; const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+    let sxx = 0, sxy = 0; for (let i = 0; i < n; i++) { sxx += (xs[i] - mx) ** 2; sxy += (xs[i] - mx) * (ys[i] - my); }
+    const a = sxy / sxx; return { a, b: my - a * mx };
+  }
+  function robustFit(list, coord) {
+    let L = list.slice();
+    for (let iter = 0; iter < 3; iter++) {
+      const vals = new Set(L.map(x => x.v)); if (vals.size < 2) return null;
+      const f = linfit(L.map(x => x[coord]), L.map(x => x.v));
+      const res = L.map(x => Math.abs(f.a * x[coord] + f.b - x.v));
+      const med = median(res); const thr = Math.max(med * 4, 1 / 3600);
+      const keep = L.filter((x, i) => res[i] <= thr);
+      if (keep.length === L.length || keep.length < 2) { f.n = L.length; f.res = res; f.used = L; return f; }
+      L = keep;
+    }
+    const f = linfit(L.map(x => x[coord]), L.map(x => x.v)); f.n = L.length; f.used = L; return f;
+  }
+  function graticuleModel(chart) {
+    if (!chart || chart.lat.length < 2 || chart.lon.length < 2) return null;
+    const fy = robustFit(chart.lat, 'py'), fx = robustFit(chart.lon, 'px');
+    if (!fy || !fx || !isFinite(fy.a) || !isFinite(fx.a) || fy.a === 0 || fx.a === 0) return null;
+    const lat0 = fy.a * 0 + fy.b; // not used
+    const latc = median(chart.lat.map(x => x.v));
+    const mpxX = Math.abs(fx.a) * M_LON_EQ * Math.cos(latc * Math.PI / 180), mpxY = Math.abs(fy.a) * M_LAT;
+    const aspect = mpxX / mpxY;
+    // residual in meters
+    const rLat = chart.lat.map(x => Math.abs(fy.a * x.py + fy.b - x.v) * M_LAT);
+    const rLon = chart.lon.map(x => Math.abs(fx.a * x.px + fx.b - x.v) * M_LON_EQ * Math.cos(latc * Math.PI / 180));
+    return {
+      kind: 'graticule', fx, fy, aspect, mPerPx: (mpxX + mpxY) / 2,
+      nLat: fy.n, nLon: fx.n, rms: Math.sqrt(rLat.concat(rLon).reduce((a, b) => a + b * b, 0) / (rLat.length + rLon.length)),
+      toPx(lat, lon) { return { x: (lon - fx.b) / fx.a, y: (lat - fy.b) / fy.a }; },
+      toLL(x, y) { return { lat: fy.a * y + fy.b, lon: fx.a * x + fx.b }; }
+    };
+  }
+  function enOf(lat, lon, ref) { return { e: (lon - ref.lon) * M_LON_EQ * Math.cos(ref.lat * Math.PI / 180), n: (lat - ref.lat) * M_LAT }; }
+  function llOf(e, n, ref) { return { lat: ref.lat + n / M_LAT, lon: ref.lon + e / (M_LON_EQ * Math.cos(ref.lat * Math.PI / 180)) }; }
+  function solve3(A, b) { // gaussian elimination 3x3
+    const M = A.map((r, i) => r.concat([b[i]]));
+    for (let c = 0; c < 3; c++) {
+      let p = c; for (let r = c + 1; r < 3; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+      [M[c], M[p]] = [M[p], M[c]]; if (Math.abs(M[c][c]) < 1e-12) return null;
+      for (let r = 0; r < 3; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k < 4; k++) M[r][k] -= f * M[c][k]; }
+    }
+    return M.map((r, i) => r[3] / r[i]);
+  }
+  function controlModel(points) {
+    const P = points.filter(p => isFinite(p.lat) && isFinite(p.lon) && isFinite(p.px) && isFinite(p.py));
+    if (P.length < 2) return null;
+    const ref = { lat: P.reduce((a, p) => a + p.lat, 0) / P.length, lon: P.reduce((a, p) => a + p.lon, 0) / P.length };
+    const src = P.map(p => enOf(p.lat, p.lon, ref));
+    let fwd; // (e,n) -> (x,y): x = a*e + b*n + c ; y = d*e + f*n + g
+    if (P.length === 2) {
+      // similarity with y axis flipped (image y down): z = s*e^{i th} * w + t, using w = e - i n
+      const w = src.map(s => [s.e, -s.n]); const z = P.map(p => [p.px, p.py]);
+      const dw = [w[1][0] - w[0][0], w[1][1] - w[0][1]], dz = [z[1][0] - z[0][0], z[1][1] - z[0][1]];
+      const den = dw[0] ** 2 + dw[1] ** 2; if (den === 0) return null;
+      const k = [(dz[0] * dw[0] + dz[1] * dw[1]) / den, (dz[1] * dw[0] - dz[0] * dw[1]) / den];
+      const t = [z[0][0] - (k[0] * w[0][0] - k[1] * w[0][1]), z[0][1] - (k[0] * w[0][1] + k[1] * w[0][0])];
+      // x = k0*e - k1*(-n) + t0 = k0 e + k1 n + t0 ; y = k0*(-n) + k1*e + t1
+      fwd = [k[0], k[1], t[0], k[1], -k[0], t[1]];
+    } else {
+      const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], bx = [0, 0, 0], by = [0, 0, 0];
+      src.forEach((s, i) => { const r = [s.e, s.n, 1]; for (let a = 0; a < 3; a++) { for (let b = 0; b < 3; b++) A[a][b] += r[a] * r[b]; bx[a] += r[a] * P[i].px; by[a] += r[a] * P[i].py; } });
+      const X = solve3(A, bx), Y = solve3(A, by); if (!X || !Y) return null;
+      fwd = [X[0], X[1], X[2], Y[0], Y[1], Y[2]];
+    }
+    const det = fwd[0] * fwd[4] - fwd[1] * fwd[3]; if (Math.abs(det) < 1e-12) return null;
+    const model = {
+      kind: P.length === 2 ? 'two-point' : 'affine', ref, fwd,
+      toPx(lat, lon) { const s = enOf(lat, lon, ref); return { x: fwd[0] * s.e + fwd[1] * s.n + fwd[2], y: fwd[3] * s.e + fwd[4] * s.n + fwd[5] }; },
+      toLL(x, y) { const dx = x - fwd[2], dy = y - fwd[5]; const e = (fwd[4] * dx - fwd[1] * dy) / det, n = (-fwd[3] * dx + fwd[0] * dy) / det; return llOf(e, n, ref); },
+      mPerPx: 1 / Math.sqrt(Math.abs(det))
+    };
+    model.residuals = P.map(p => { const q = model.toPx(p.lat, p.lon); return Math.hypot(q.x - p.px, q.y - p.py) * model.mPerPx; });
+    model.rms = Math.sqrt(model.residuals.reduce((a, b) => a + b * b, 0) / P.length);
+    return model;
+  }
+  // combine: base (graticule or control) + optional single-point correction + manual shift in meters
+  function composeModel(base, onePoint, shift) {
+    if (!base) return null;
+    let dx = 0, dy = 0;
+    if (onePoint) { const q = base.toPx(onePoint.lat, onePoint.lon); dx = onePoint.px - q.x; dy = onePoint.py - q.y; }
+    const mpp = base.mPerPx || 1;
+    // shift (meters east/north) applied as pixel offset using local scale
+    const probe = base.toLL(0, 0); const a = base.toPx(probe.lat, probe.lon);
+    const pe = base.toPx(probe.lat, probe.lon + 100 / (M_LON_EQ * Math.cos(probe.lat * Math.PI / 180)));
+    const pn = base.toPx(probe.lat + 100 / M_LAT, probe.lon);
+    const ex = [(pe.x - a.x) / 100, (pe.y - a.y) / 100], nx = [(pn.x - a.x) / 100, (pn.y - a.y) / 100];
+    const sx = (shift ? shift.e : 0) * ex[0] + (shift ? shift.n : 0) * nx[0] + dx;
+    const sy = (shift ? shift.e : 0) * ex[1] + (shift ? shift.n : 0) * nx[1] + dy;
+    return Object.assign({}, base, {
+      toPx(lat, lon) { const q = base.toPx(lat, lon); return { x: q.x + sx, y: q.y + sy }; },
+      toLL(x, y) { return base.toLL(x - sx, y - sy); }, mPerPx: mpp, offsetPx: [sx, sy]
+    });
+  }
+  function plainModel(points) {
+    // no diagram: 1 px = 1 m around the track's ground centroid
+    const g = points.filter(p => p.gnd); const P = g.length ? g : points;
+    const ref = { lat: P.reduce((a, p) => a + p.lat, 0) / P.length, lon: P.reduce((a, p) => a + p.lon, 0) / P.length };
+    return { kind: 'plain', ref, mPerPx: 1, toPx(lat, lon) { const s = enOf(lat, lon, ref); return { x: s.e, y: -s.n }; }, toLL(x, y) { return llOf(x, -y, ref); } };
+  }
+
+  const API = { TEL, callsignInfo, findCallsigns, wordsToDigits, phoneticToLetters, extractElements, checkReadback, parseTranscript, buildSteps,
+    parseCSV, parseKML, finishTrack, detectStops, landingIndex, trimToAirport, chooseTzOffset, toAbs, analyse, clock, sodClock, fmtDur, distM,
+    parseDMS, parseLatLonPair, readChartText, groupTextLines, graticuleModel, controlModel, composeModel, plainModel, isMovement, isInstruction };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.TaxiCore = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>(function () {
+  'use strict';
+  const C = window.TaxiCore;
+  const $ = (s, r) => (r || document).querySelector(s);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const STEP_COLORS = ['#1f6feb', '#12a150', '#e8590c', '#7048e8', '#0e7490', '#a61e4d', '#9a6b00', '#c2255c', '#2b8a3e', '#5f3dc4', '#1864ab', '#d9480f'];
+  const PDF_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // ---------------- state (one airport, a list of flights) ----------------
+  // each aircraft has its own color on the map, in its chip and on its icon
+  const FLIGHT_COLORS = ['#1f6feb', '#d9480f', '#2b8a3e', '#862e9c', '#0b7285', '#c2255c'];
+  const MAX_AC = 6;
+  let flightSeq = 0;
+  const state = {
+    sample: false,
+    airport: { diagram: null, ctrl: [], shift: { e: 0, n: 0 }, model: null, modelNote: '' },
+    flights: [],
+    active: 0,
+    prox: null,
+    ui: { sel: null, tSlider: null, addingPoint: false, pendingPoint: null }
+  };
+  function newFlight() {
+    const used = state.flights.map(f => f.color);
+    const color = FLIGHT_COLORS.find(c => !used.includes(c)) || FLIGHT_COLORS[state.flights.length % FLIGHT_COLORS.length];
+    return { id: 'f' + (++flightSeq), color, show: true, isTest: false, callsignInput: '', callsign: null, transcript: null, track: null, trackFull: null, steps: [], parsed: null, tzOffset: null, tzManual: false, tzInfo: null, stops: [] };
+  }
+  state.flights.push(newFlight());
+  const F = () => state.flights[state.active] || state.flights[0];
+  const multi = () => state.flights.length > 1;
+  function flightLabel(f) { const i = state.flights.indexOf(f); return (f.callsign && f.callsign.raw) || (f.callsignInput || '').toUpperCase() || 'Aircraft ' + (i + 1); }
+
+  // ---------------- map ----------------
+  let map, overlay = null; const layers = {};
+  function initMap() {
+    map = L.map('map', { crs: L.CRS.Simple, minZoom: -5, maxZoom: 4, zoomSnap: 0.25, zoomDelta: 0.5, attributionControl: false, preferCanvas: false });
+    map.setView([0, 0], 0);
+    ['named', 'track', 'steps', 'attention', 'craft', 'ctrl'].forEach(k => { layers[k] = L.layerGroup().addTo(map); });
+    map.on('click', onMapClick);
+  }
+  const LL = (p) => L.latLng(-p.y, p.x);
+
+  // ---------------- file intake ----------------
+  function readAs(file, how) {
+    return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r[how](file); });
+  }
+  async function onDiagramFile(file) {
+    if (!file) return;
+    dropSampleIfNeeded('diagram');
+    setStatus('diagram', 'busy', 'Reading ' + file.name + '...');
+    try {
+      if (/pdf$/i.test(file.type) || /\.pdf$/i.test(file.name)) await loadPdf(new Uint8Array(await readAs(file, 'readAsArrayBuffer')), file.name, file.size);
+      else await loadImage(await readAs(file, 'readAsDataURL'), file.name, file.size);
+    } catch (e) { console.error(e); setStatus('diagram', 'err', 'Could not read ' + file.name + '. ' + (e.message || '')); }
+  }
+  async function loadPdf(bytes, name, size, isSample) {
+    if (!window.pdfjsLib) throw new Error('The PDF reader did not load. Check the connection and reload the page.');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
+    const doc = await pdfjsLib.getDocument({ data: bytes, isEvalSupported: false, useSystemFonts: true }).promise;
+    const page = await doc.getPage(1);
+    const v1 = page.getViewport({ scale: 1 });
+    const scale = Math.min(4, 3000 / Math.max(v1.width, v1.height));
+    const vp = page.getViewport({ scale });
+    const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const tc = await page.getTextContent();
+    const items = tc.items.filter(i => i.str && i.str.trim()).map(it => {
+      const [a, b, c, d, e, f] = it.transform; const ang0 = Math.atan2(b, a);
+      const ux = Math.cos(ang0), uy = Math.sin(ang0); const h = it.height || Math.hypot(c, d);
+      const cx = e + ux * it.width / 2 - uy * h * 0.35, cy = f + uy * it.width / 2 + ux * h * 0.35;
+      const [x, y] = vp.convertToViewportPoint(cx, cy); const [x2, y2] = vp.convertToViewportPoint(cx + ux, cy + uy);
+      return { str: it.str, cx: x, cy: y, w: it.width * scale, h: h * scale, ang: Math.atan2(y2 - y, x2 - x) };
+    });
+    const chart = C.readChartText(items);
+    const url = await canvasUrl(cv);
+    setDiagram({ name, size, kind: 'pdf', w: cv.width, h: cv.height, url, chart, pages: doc.numPages, isSample: !!isSample });
+  }
+  function canvasUrl(cv) {
+    return new Promise(res => { try { cv.toBlob(b => res(b ? URL.createObjectURL(b) : cv.toDataURL('image/png')), 'image/png'); } catch (e) { res(cv.toDataURL('image/png')); } });
+  }
+  function loadImage(src, name, size) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => { setDiagram({ name, size, kind: 'image', w: img.naturalWidth, h: img.naturalHeight, url: src, chart: { lat: [], lon: [], taxi: [], hotspots: [] } }); res(); };
+      img.onerror = () => rej(new Error('The image could not be opened.'));
+      img.src = src;
+    });
+  }
+  function setDiagram(d) {
+    state.airport.diagram = d;
+    state.airport.ctrl = loadCtrl(d) || [];
+    state.airport.shift = { e: 0, n: 0 };
+    if (overlay) { map.removeLayer(overlay); overlay = null; }
+    const b = [[-d.h, 0], [0, d.w]];
+    overlay = L.imageOverlay(d.url, b, { className: 'diagram-img' }).addTo(map);
+    overlay.bringToBack();
+    map.fitBounds(b);
+    recompute(true);
+  }
+
+  async function onTranscriptText(text, name, isSample) {
+    if (!isSample) { dropSampleIfNeeded('transcript'); clearTestFlight(F()); }
+    F().transcript = { text, name };
+    $('#tx-paste').value = text;
+    recompute(true);
+  }
+  async function onTrackFile(file) {
+    if (!file) return;
+    dropSampleIfNeeded('track'); clearTestFlight(F());
+    const text = await readAs(file, 'readAsText');
+    loadTrackText(text, file.name);
+  }
+  function loadTrackText(text, name, isSample, f, noRecompute) {
+    f = f || F();
+    try {
+      const isKml = /^\s*<\?xml|<kml/i.test(text.slice(0, 400)) || /\.kml$/i.test(name);
+      const tr = isKml ? C.parseKML(text) : C.parseCSV(text);
+      tr.name = name; tr.isSample = !!isSample;
+      f.trackFull = tr; f.track = tr; f.tzManual = false;
+      if (tr.callsign && !f.callsignInput) f.callsignInput = tr.callsign.toUpperCase();
+      if (!noRecompute) recompute(true);
+    } catch (e) { console.error(e); setStatus('track', 'err', 'Could not read ' + name + '. ' + e.message); }
+  }
+  // a made-up test aircraft gives way to real files: attaching one clears its other test pieces
+  function clearTestFlight(f) {
+    if (!f || !f.isTest) return;
+    f.isTest = false; f.transcript = null; f.track = null; f.trackFull = null; f.callsignInput = ''; f.tzManual = false;
+    $('#tx-paste').value = '';
+  }
+  function dropSampleIfNeeded(keep) {
+    if (!state.sample) return;
+    const real = state.sample === 'mke';
+    state.sample = false; $('#sample-banner').hidden = true;
+    if (real) return; // real data: keep the other pieces, only the attached one changes
+    if (keep !== 'diagram' && state.airport.diagram) { if (overlay) { map.removeLayer(overlay); overlay = null; } state.airport.diagram = null; state.airport.ctrl = []; }
+    if (keep !== 'transcript') { F().transcript = null; $('#tx-paste').value = ''; }
+    if (keep !== 'track') { F().track = null; F().trackFull = null; }
+    F().callsignInput = '';
+    recompute(true);
+  }
+
+  // ---------------- control point storage (per diagram, this browser only) ----------------
+  const ctrlKey = (d) => 'taxi-ctrl:' + d.name + ':' + d.size;
+  function loadCtrl(d) { try { const v = localStorage.getItem(ctrlKey(d)); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+  function saveCtrl() { const d = state.airport.diagram; if (!d || d.isSample) return; try { localStorage.setItem(ctrlKey(d), JSON.stringify(state.airport.ctrl)); } catch (e) { } }
+
+  // ---------------- compute ----------------
+  function buildModel() {
+    const A = state.airport, d = A.diagram, f = state.flights.find(x => x.track) || F();
+    if (!d) {
+      if (f.track) { A.model = C.plainModel(f.track.points); A.modelNote = 'No diagram attached. The track is drawn on a plain 1 m grid.'; A.modelState = 'plain'; }
+      else { A.model = null; A.modelState = 'none'; A.modelNote = ''; }
+      return;
+    }
+    const grat = C.graticuleModel(d.chart);
+    const pts = A.ctrl;
+    let base = null, note = '', st = 'ok';
+    if (pts.length >= 2) {
+      base = C.controlModel(pts);
+      note = base ? 'Aligned from your ' + pts.length + ' control points. Fit error ' + base.rms.toFixed(0) + ' m.' : 'Those control points do not give a usable fit. Remove one and try again.';
+      if (!base) st = 'bad';
+      else if (pts.length === 2) note += ' Add a third point to check the fit.';
+    } else if (grat) {
+      base = grat;
+      note = 'Aligned from the chart’s latitude and longitude labels (' + grat.nLat + ' and ' + grat.nLon + ' labels).';
+      if (Math.abs(grat.aspect - 1) > 0.15) { note += ' The two axes disagree by ' + Math.round(Math.abs(grat.aspect - 1) * 100) + '%, so check the fit with a control point.'; st = 'warn'; }
+      if (pts.length === 1) note += ' Shifted to match your control point.';
+    } else {
+      st = 'need';
+      note = pts.length === 1 ? 'One control point placed. Add one more to align the diagram.' : 'This diagram has no readable latitude and longitude labels. Add two control points to align it.';
+    }
+    A.model = base ? C.composeModel(base, (!base.kind || base.kind === 'graticule') && pts.length === 1 ? pts[0] : null, A.shift) : null;
+    if (A.model && (A.shift.e || A.shift.n)) note += ' Track nudged ' + nudgeText() + '.';
+    A.modelNote = note; A.modelState = st;
+  }
+  function nudgeText() { const s = state.airport.shift; const p = []; if (s.n) p.push(Math.abs(s.n) + ' m ' + (s.n > 0 ? 'north' : 'south')); if (s.e) p.push(Math.abs(s.e) + ' m ' + (s.e > 0 ? 'east' : 'west')); return p.join(' and '); }
+
+  function computeFlight(f) {
+    const csRaw = (f.callsignInput || '').trim() || (f.track && f.track.callsign) || '';
+    f.callsign = csRaw ? C.callsignInfo(csRaw) : null;
+    f.steps = []; f.parsed = null;
+    if (f.transcript && f.callsign) {
+      f.parsed = C.parseTranscript(f.transcript.text, f.callsign);
+      f.steps = C.buildSteps(f.parsed, f.callsign);
+      f.steps.forEach((s, i) => { s.color = STEP_COLORS[i % STEP_COLORS.length]; s.n = i + 1; });
+    }
+    // a whole-flight track: keep only the part near this airport
+    if (f.trackFull) {
+      const A = state.airport, d = A.diagram;
+      f.track = d && A.model ? C.trimToAirport(f.trackFull, A.model.toLL(d.w / 2, d.h / 2), 30000) : f.trackFull;
+    }
+    const pref = -new Date().getTimezoneOffset() / 60;
+    if (!f.tzManual) { const peer = state.flights.find(x => x !== f && x.track && x.tzOffset != null);
+      f.tzInfo = f.track ? C.chooseTzOffset(f.steps, f.track, pref) : { offset: peer ? peer.tzOffset : pref, auto: false }; f.tzOffset = f.tzInfo.offset; }
+    C.analyse(f);
+  }
+  function recompute(refit) {
+    buildModel();
+    state.flights.forEach(computeFlight);
+    buildModel();
+    state.flights.forEach(nearLabels);
+    computeProx();
+    const f = F();
+    if (state.ui.sel != null && !f.steps[state.ui.sel]) state.ui.sel = null;
+    renderAll(refit);
+  }
+  // closest approach between two shown aircraft while both are on the ground
+  function computeProx() {
+    state.prox = null;
+    const vis = state.flights.filter(f => f.show && f.track && f.track.hasTime && f.track.points.length > 1);
+    if (vis.length < 2) return;
+    let best = null; const pairs = [];
+    for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
+      const a = vis[i], b = vis[j]; const pa = a.track.points, pb = b.track.points;
+      const t0 = Math.max(pa[0].t, pb[0].t), t1 = Math.min(pa[pa.length - 1].t, pb[pb.length - 1].t);
+      let bp = null;
+      for (let t = t0; t <= t1; t += 2) {
+        const qa = posAt(a, t), qb = posAt(b, t); if (!qa.gnd || !qb.gnd) continue;
+        const d = C.distM(qa, qb); if (!bp || d < bp.d) bp = { a, b, d, t, qa, qb };
+      }
+      pairs.push({ a, b, hit: bp });
+      if (bp && (!best || bp.d < best.d)) best = bp;
+    }
+    state.prox = { best, pairs };
+  }
+  // Which names in each instruction can be found as printed labels on the diagram
+  function namedLabels(f) {
+    const d = state.airport.diagram;
+    for (const s of f.steps) {
+      s.named = { found: [], missing: [], spots: [] };
+      if (!d || !s.el) continue;
+      const names = [...new Set(s.el.route.concat(s.el.hold.filter(h => !h.startsWith('RWY'))))];
+      for (const n of names) {
+        const hits = d.chart.taxi.filter(t => t.name === n);
+        if (hits.length) { s.named.found.push(n); hits.forEach(h => s.named.spots.push({ name: n, px: h.px, py: h.py })); }
+        else s.named.missing.push(n);
+      }
+    }
+  }
+  function nearLabels(f) {
+    namedLabels(f);
+    const A = state.airport, d = A.diagram;
+    f.hotspotHits = [];
+    if (!f.track || !A.model) return;
+    const pts = f.track.points; const m = A.model; const mpp = m.mPerPx || 1;
+    // taxi speeds only, so the landing roll does not list every label beside the runway
+    const px = pts.map(p => p.gnd && (p.v == null || p.v <= 35) ? m.toPx(p.lat, p.lon) : null);
+    const taxi = d ? d.chart.taxi : [];
+    for (const s of f.steps) {
+      s.near = [];
+      if (!s.ptIdx) continue;
+      const hits = [];
+      for (const lb of taxi) {
+        let best = Infinity, at = -1;
+        for (const i of s.ptIdx) { const q = px[i]; if (!q) continue; const dd = Math.hypot(q.x - lb.px, q.y - lb.py) * mpp; if (dd < best) { best = dd; at = i; } }
+        if (best < 120) hits.push({ name: lb.name, at, d: best });
+      }
+      hits.sort((a, b) => a.at - b.at);
+      s.near = hits.map(h => h.name).filter((n, i, a) => a.indexOf(n) === i);
+    }
+    if (d) for (const h of d.chart.hotspots) {
+      let best = Infinity; for (const q of px) if (q) best = Math.min(best, Math.hypot(q.x - h.px, q.y - h.py) * mpp);
+      if (best < 250) f.hotspotHits.push({ name: h.name, px: h.px, py: h.py, d: best });
+    }
+  }
+
+  // ---------------- rendering ----------------
+  function renderAll(refit) {
+    renderFleet(); renderStatus(); renderSettings(); renderSteps(); renderMap(refit); renderAlign(); renderExcluded(); renderSlider();
+  }
+  function renderFleet() {
+    const list = $('#fleet-list');
+    list.innerHTML = state.flights.map((f, i) => {
+      const on = i === state.active;
+      const sub = f.isTest ? 'made up for testing' : [f.transcript ? f.steps.length + (f.steps.length === 1 ? ' step' : ' steps') : 'no transcript', f.track ? 'track' : 'no track'].join(', ');
+      return '<div class="ac' + (on ? ' on' : '') + '" style="--fc:' + f.color + '">' +
+        '<button type="button" class="ac-pick" data-pick="' + i + '" aria-pressed="' + on + '"><span class="ac-dot" aria-hidden="true"></span><span class="ac-txt"><span class="ac-name">' + esc(flightLabel(f)) + '</span><span class="ac-sub">' + esc(sub) + '</span></span></button>' +
+        '<label class="ac-show"><input type="checkbox" data-show="' + i + '"' + (f.show ? ' checked' : '') + '> On map</label>' +
+        (state.flights.length > 1 ? '<button type="button" class="link ac-rm" data-rm-ac="' + i + '" aria-label="Remove ' + esc(flightLabel(f)) + '">Remove</button>' : '') + '</div>';
+    }).join('');
+    list.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => pickFlight(+b.dataset.pick));
+    list.querySelectorAll('[data-show]').forEach(b => b.onchange = () => { state.flights[+b.dataset.show].show = b.checked; computeProx(); renderFleetNote(); renderMap(false); renderSlider(); });
+    list.querySelectorAll('[data-rm-ac]').forEach(b => b.onclick = () => removeFlight(+b.dataset.rmAc));
+    $('#btn-add-ac').disabled = state.flights.length >= MAX_AC;
+    $('#btn-add-ac').title = state.flights.length >= MAX_AC ? 'Up to ' + MAX_AC + ' aircraft' : '';
+    renderFleetNote();
+  }
+  function renderFleetNote() {
+    const note = $('#fleet-note'); const P = state.prox;
+    if (!multi()) { note.innerHTML = 'Add another aircraft to replay it on the same diagram and timeline.'; return; }
+    if (!P) { note.innerHTML = 'Attach a track for at least two aircraft and show them on the map to compare them.'; return; }
+    const tz = F().tzOffset;
+    note.innerHTML = P.pairs.map(p => p.hit
+      ? 'Closest on the ground: <b>' + esc(flightLabel(p.a)) + '</b> and <b>' + esc(flightLabel(p.b)) + '</b>, ' + fmtDist(p.hit.d) + ' apart at <span class="mono">' + C.clock(p.hit.t, tz) + '</span>.'
+      : '<b>' + esc(flightLabel(p.a)) + '</b> and <b>' + esc(flightLabel(p.b)) + '</b> were never on the ground at the same time in these tracks.').join('<br>');
+  }
+  function fmtDist(m) { return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
+  function pickFlight(i) {
+    if (i === state.active) return;
+    state.active = i; state.ui.sel = null; state.ui.addingPoint = false;
+    $('#tx-paste').value = F().transcript ? F().transcript.text : '';
+    renderAll(true);
+  }
+  function addFlight() {
+    if (state.flights.length >= MAX_AC) return;
+    state.flights.push(newFlight()); state.active = state.flights.length - 1; state.ui.sel = null;
+    $('#tx-paste').value = '';
+    recompute(false);
+    $('#intake').scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    $('#callsign').focus({ preventScroll: true });
+  }
+  function removeFlight(i) {
+    if (state.flights.length < 2) return;
+    state.flights.splice(i, 1);
+    if (state.active >= state.flights.length || state.active === i) state.active = Math.max(0, Math.min(state.active, state.flights.length - 1));
+    else if (i < state.active) state.active--;
+    state.ui.sel = null;
+    $('#tx-paste').value = F().transcript ? F().transcript.text : '';
+    recompute(true);
+  }
+  function setStatus(which, kind, html) { const el = $('#st-' + which); el.className = 'card-status ' + kind; el.innerHTML = html; }
+  function renderStatus() {
+    const A = state.airport, f = F(), d = A.diagram;
+    const forHtml = multi() ? '<span class="for" style="--fc:' + f.color + '"><span class="ac-dot" aria-hidden="true"></span>' + esc(flightLabel(f)) + '</span>' : '';
+    $('#tx-for').innerHTML = forHtml; $('#tr-for').innerHTML = forHtml; $('#steps-for').innerHTML = forHtml;
+    $('#intake').classList.toggle('multi', multi());
+    $('#intake').style.setProperty('--fc', f.color);
+    const donor = f.transcript ? null : state.flights.find(x => x !== f && x.transcript);
+    $('#tx-share').hidden = !donor;
+    if (donor) { $('#tx-share').textContent = 'Use the same transcript as ' + flightLabel(donor); $('#tx-share').onclick = () => { clearTestFlight(f); f.transcript = donor.transcript; $('#tx-paste').value = donor.transcript.text; recompute(true); }; }
+    if (d) {
+      const ed = d.chart && d.chart.edition;
+      const when = f.track && f.track.hasTime ? f.track.points[0].t * 1000 : Date.now();
+      const old = ed && when > ed.to;
+      const fmtD = (ms) => new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      setStatus('diagram', A.modelState === 'need' || A.modelState === 'bad' || old ? 'warn' : 'ok', '<b>' + esc(d.name) + '</b><br>' + (d.kind === 'pdf' ? 'PDF page 1' + (d.pages > 1 ? ' of ' + d.pages : '') : 'Image ' + d.w + ' by ' + d.h + ' px') + '. ' + esc(A.modelState === 'need' ? 'Needs alignment.' : A.modelState === 'warn' ? 'Check the alignment.' : 'Aligned.') +
+        (old ? '<br>This chart edition ended ' + esc(fmtD(ed.to - 86400000)) + '. Taxiways may have changed since, so use the current FAA diagram when you can.' : ed ? '<br>Chart edition ' + esc(ed.text) + '.' : ''));
+    }
+    else setStatus('diagram', 'idle', 'PDF from the FAA chart supplement, or a picture of the diagram.');
+    if (f.transcript) {
+      if (!f.callsign) setStatus('transcript', 'warn', '<b>' + esc(f.transcript.name) + '</b><br>Enter the callsign below to pick out this aircraft’s calls.');
+      else { const n = f.parsed ? f.parsed.transmissions.filter(t => !t.aside).length : 0; const asides = f.parsed ? f.parsed.transmissions.length - n : 0; const ex = f.parsed ? f.parsed.excluded.length : 0;
+        setStatus('transcript', f.steps.length ? 'ok' : 'warn', '<b>' + esc(f.transcript.name) + '</b><br>' + n + ' calls for ' + esc(f.callsign.label) + ', ' + f.steps.length + ' steps' + (ex ? ', ' + ex + (ex === 1 ? ' line' : ' lines') + ' left out' : '') + (asides ? ', ' + asides + ' side ' + (asides === 1 ? 'remark' : 'remarks') : '') + '.' + sharedTxt(f)); }
+    } else setStatus('transcript', 'idle', 'Text file, or paste the text. One call per line, with time and frequency lines between.');
+    if (f.track) {
+      const p = f.track.points; const g = p.filter(x => x.gnd).length;
+      const span = f.track.hasTime ? C.fmtDur(p[p.length - 1].t - p[0].t) : 'no times';
+      const tm = f.track.trim; let trimTxt = '';
+      if (tm && tm.kept) trimTxt = ' Kept the part within ' + Math.round(tm.radiusM / 1000) + ' km of this airport (' + tm.kept + ' of ' + tm.total + ' points' + (f.track.hasTime ? ', from ' + C.clock(p[0].t, f.tzOffset) : '') + ').';
+      else if (tm && tm.none) trimTxt = ' None of the track is near this diagram, so check that the track and diagram are for the same airport.';
+      const endTxt = f.trackEnd ? ' The track ends while the aircraft is still moving at ' + Math.round(f.trackEnd.v) + ' kt.' : '';
+      setStatus('track', f.track.hasTime && !(tm && tm.none) ? (endTxt ? 'warn' : 'ok') : 'warn', '<b>' + esc(f.track.name) + '</b><br>' + p.length + ' points, ' + g + ' on the ground, ' + span + '.' + trimTxt + endTxt + (f.track.hasTime ? '' : ' Without times the path cannot be split into steps.'));
+    } else setStatus('track', 'idle', 'CSV (FR24, ADS-B Exchange, OpenSky style) or KML.');
+  }
+  function sharedTxt(f) {
+    const o = state.flights.filter(x => x !== f && x.transcript && x.transcript === f.transcript);
+    return o.length ? ' Same file as ' + o.map(x => esc(flightLabel(x))).join(', ') + '.' : '';
+  }
+  function renderSettings() {
+    const f = F(); const sel = $('#tz');
+    if (document.activeElement !== $('#callsign')) $('#callsign').value = f.callsignInput || '';
+    $('#settings-for').innerHTML = multi() ? 'for <span class="for" style="--fc:' + f.color + '"><span class="ac-dot" aria-hidden="true"></span>' + esc(flightLabel(f)) + '</span>' : '';
+    if (!sel.options.length) for (let o = -12; o <= 14; o += 0.5) { const op = document.createElement('option'); op.value = o; op.textContent = 'UTC' + (o >= 0 ? '+' : '-') + fmtOff(Math.abs(o)); sel.appendChild(op); }
+    sel.value = String(f.tzOffset);
+    const info = f.tzInfo;
+    $('#tz-note').textContent = f.tzManual ? 'Set by you.' : info && info.auto ? 'Picked automatically: ' + info.score + ' of ' + info.of + ' call times fall inside the track.' : 'Using this device’s time zone.';
+    $('#cs-note').textContent = f.callsign ? (f.callsign.telephony ? 'Listening for “' + f.callsign.telephony + ' ' + f.callsign.number + '” and “' + f.callsign.number + '”.' : 'Listening for “' + f.callsign.raw + '”.') : 'Type it, or it comes from the track file when the file has one.';
+  }
+  function fmtOff(h) { const m = Math.round((h % 1) * 60); return Math.floor(h) + (m ? ':' + String(m).padStart(2, '0') : ''); }
+
+  function sign(text, kind) { return '<span class="sgn ' + kind + '">' + esc(text) + '</span>'; }
+  function titleHtml(s) {
+    const e = s.el; const parts = [];
+    if (e.land) parts.push('Cleared to land ' + (e.runways[0] ? sign(e.runways[0].slice(4), 'rwy') : ''));
+    if (e.takeoff) parts.push('Cleared for takeoff ' + (e.runways[0] ? sign(e.runways[0].slice(4), 'rwy') : ''));
+    if (e.luaw) parts.push('Line up and wait');
+    if (e.cross.length) parts.push('Cross ' + e.cross.map(c => sign(c.slice(4), 'rwy')).join(' '));
+    const route = e.route.filter((x, i, a) => a.indexOf(x) === i);
+    if (route.length === 1 && s.turnAt) parts.push('Turn ' + esc(s.turnAt) + ' at ' + sign(route[0], 'twy'));
+    else if (route.length) parts.push('Taxi via ' + route.map(r => sign(r, 'twy')).join('<span class="sgn-sep"></span>'));
+    if (e.hold.length) parts.push('Hold short of ' + [...new Set(e.hold)].map(h => h.startsWith('RWY') ? sign(h.slice(4), 'rwy') : sign(h, 'loc')).join(' '));
+    if (e.spot) parts.push('Spot ' + sign(e.spot, 'loc'));
+    if (e.gate) parts.push('Gate ' + sign(e.gate, 'loc'));
+    if (e.speed.length) parts.push('Speed ' + [...new Set(e.speed)].join(', ') + ' kt');
+    if (e.alt.length) parts.push('Altitude ' + e.alt.join(', '));
+    if (!parts.length) parts.push(e.freqs.length ? 'Frequency change' : 'Coordination, no movement');
+    return parts.join('<span class="dot-sep">;</span> ');
+  }
+  function badge(s) {
+    const c = s.check; const cls = { match: 'good', partial: c.severity === 'high' ? 'bad' : 'warn', none: c.severity === 'high' ? 'bad' : 'warn', nocapture: 'warn', info: 'neutral' }[c.status];
+    const txt = { match: 'Readback matches', partial: 'Readback missing: ' + c.missing.join(', '), none: 'No readback in transcript', nocapture: 'Instruction not captured', info: 'No readback needed' }[c.status];
+    return '<span class="pill ' + cls + '">' + esc(txt) + '</span>';
+  }
+  function stepClock(s) {
+    const f = F();
+    if (s.abs != null) return C.clock(s.abs, f.tzOffset).slice(0, 8) + (s.timeEstimated ? ' est.' : '');
+    if (s.time != null) return C.sodClock(s.time);
+    return 'time n/a';
+  }
+  function renderSteps() {
+    const f = F(); const box = $('#steps');
+    if (!f.steps.length) {
+      box.innerHTML = '<div class="empty">' + (f.transcript ? (f.callsign ? 'No calls for ' + esc(f.callsign.label) + ' were found in the transcript. Check the callsign.' : 'Enter the callsign to read the transcript.') : 'Attach a transcript to list each ATC instruction here.') + '</div>';
+      return;
+    }
+    const onlyMove = $('#only-move').checked;
+    box.innerHTML = f.steps.map(s => {
+      if (onlyMove && !s.movement) return '';
+      if (s.company) return '<article class="step company' + (state.ui.sel === s.id ? ' sel' : '') + '" data-id="' + s.id + '" tabindex="0" style="--c:' + s.color + '">' +
+        '<header><span class="num">' + s.n + '</span><span class="when">' + esc(stepClock(s)) + '</span><span class="freq">' + esc([s.facility, s.freq].filter(Boolean).join(' ')) + '</span></header>' +
+        '<h3>' + (s.el.gate ? 'Company: gate ' + sign(s.el.gate, 'loc') : 'Company call') + '</h3>' +
+        (s.pilotCalls.length ? '<p class="say pilot"><b>Pilot</b> ' + esc(s.pilotCalls.join(' ')) + '</p>' : '') +
+        '<p class="say atc"><b>Ops</b> ' + esc(s.atc) + '</p>' + (s.readback ? '<p class="say rb"><b>Reply</b> ' + esc(s.readback) + '</p>' : '') +
+        '<div class="checks"><span class="pill neutral">Company frequency, not ATC</span></div></article>';
+      const mv = [];
+      if (s.win && s.win[1] > s.win[0]) {
+        if (s.dist != null) mv.push((s.airborne ? 'Flew ' : 'Moved ') + (s.dist >= 1000 ? (s.dist / 1000).toFixed(1) + ' km' : Math.round(s.dist) + ' m') + ' in ' + C.fmtDur(s.dur));
+        const st = (s.stops || []).filter(x => !x.last || x.t0 < s.win[1]);
+        if (st.length) mv.push('stopped ' + st.map(x => C.fmtDur(Math.min(x.t1, s.win[1]) - Math.max(x.t0, s.win[0]))).join(', '));
+      }
+      const flags = (s.flags || []).map(fl => '<li class="' + (fl.ok ? 'ok' : 'bad') + '">' + esc(fl.text) + '</li>').join('');
+      const nm = s.named || { found: [], missing: [] };
+      const namedHtml = (!f.track || !s.near || !s.near.length) && (nm.found.length || nm.missing.length) ?
+        '<div class="near">' + (nm.found.length ? 'Found on the chart: ' + nm.found.map(n => sign(n, 'twy sm')).join(' ') : '') +
+        (nm.missing.length ? (nm.found.length ? ' ' : '') + '<span class="miss">Not found on the chart: ' + nm.missing.map(esc).join(', ') + '. Check the transcript or the chart edition.</span>' : '') + '</div>' : '';
+      const near = s.near && s.near.length ? '<div class="near">Chart labels near the path: ' + s.near.map(n => sign(n, 'twy sm')).join(' ') + '</div>' : '';
+      const est = s.timeEstimated ? '<div class="note-sm">Time estimated ' + esc(s.timeEstimateBasis) + '.</div>' : '';
+      return '<article class="step' + (state.ui.sel === s.id ? ' sel' : '') + (state.ui.active === s.id ? ' active' : '') + '" data-id="' + s.id + '" tabindex="0" style="--c:' + s.color + '">' +
+        '<header><span class="num">' + s.n + '</span><span class="when">' + esc(stepClock(s)) + '</span><span class="freq">' + esc([s.facility, s.freq].filter(Boolean).join(' ')) + '</span></header>' +
+        '<h3>' + titleHtml(s) + '</h3>' +
+        (s.pilotCalls.length ? '<p class="say pilot"><b>Pilot</b> ' + esc(s.pilotCalls.join(' ')) + '</p>' : '') +
+        '<p class="say atc"><b>ATC</b> ' + (s.atc ? esc(s.atc) : '<i>Not in the transcript.</i>') + '</p>' +
+        '<p class="say rb"><b>Readback</b> ' + (s.readback ? esc(s.readback) : '<i>Not in the transcript.</i>') + '</p>' +
+        (s.notes.length ? '<p class="say pilot"><b>Also</b> ' + esc(s.notes.join(' ')) + '</p>' : '') +
+        (s.asides && s.asides.length ? '<details class="aside"><summary>Side talk (' + s.asides.length + ' lines, no instructions)</summary><p>' + s.asides.map(esc).join('<br>') + '</p></details>' : '') +
+        '<div class="checks">' + badge(s) + '</div>' + est +
+        (mv.length ? '<div class="move">' + esc(mv.join(', ')) + '</div>' : '') +
+        (flags ? '<ul class="flags">' + flags + '</ul>' : '') + near + namedHtml + '</article>';
+    }).join('');
+    box.querySelectorAll('.step').forEach(el => {
+      const go = () => selectStep(+el.dataset.id);
+      el.addEventListener('click', go); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    });
+    const hs = F().hotspotHits || [];
+    $('#hs-note').innerHTML = hs.length ? 'The path passes ' + hs.map(h => '<b>' + esc(h.name) + '</b>').join(', ') + ', marked on the chart as a hot spot.' : '';
+    $('#hs-note').hidden = !hs.length;
+  }
+  function renderExcluded() {
+    const f = F(); const ex = f.parsed ? f.parsed.excluded : [];
+    $('#excluded').hidden = !ex.length;
+    $('#excluded-count').textContent = ex.length;
+    $('#excluded-list').innerHTML = ex.map(e => '<li><span class="why">' + esc(e.reason) + '</span><br>' + (e.time != null ? '<span class="mono">' + C.sodClock(e.time) + '</span> ' : '') + esc(e.text) + '</li>').join('');
+  }
+
+  function renderMap(refit) {
+    Object.values(layers).forEach(l => l.clearLayers());
+    const A = state.airport, f = F(), m = A.model;
+    const vis = state.flights.filter(x => x.show && x.track);
+    $('#map-empty').hidden = !!(A.diagram || vis.length);
+    $('#no-track').hidden = !(A.diagram && !f.track && f.show);
+    if (overlay) overlay.setOpacity($('#lyr-diagram').checked ? 1 : 0.08);
+    if (f.show) drawNamed();
+    const anyTrack = m && vis.length;
+    if (!anyTrack) { if (refit && A.diagram) fitNamedOrAll(); return; }
+    const show = (id) => $('#lyr-' + id).checked;
+    const mpp = m.mPerPx || 1;
+    // the other aircraft: one dashed line each in the aircraft's color
+    for (const g of vis) if (g !== f) drawOther(g, m);
+    drawProx(m);
+    if (f.track && f.show) drawActive(f, m, show, mpp);
+    // control points
+    state.airport.ctrl.forEach((c, i) => L.marker(LL({ x: c.px, y: c.py }), { icon: L.divIcon({ className: 'ctrl-ic', html: '<span>' + (i + 1) + '</span>', iconSize: [18, 18] }) }).bindTooltip('Control point ' + (i + 1) + ': ' + c.lat.toFixed(5) + ', ' + c.lon.toFixed(5), { className: 'tt' }).addTo(layers.ctrl));
+    drawCraft();
+    if (refit) fitFocus();
+  }
+  function drawOther(g, m) {
+    const pts = g.track.points; const line = pts.map(p => LL(m.toPx(p.lat, p.lon)));
+    L.polyline(line, { color: '#fff', weight: 6, opacity: 0.75, interactive: false }).addTo(layers.track);
+    L.polyline(line, { color: g.color, weight: 3.5, opacity: 0.95, dashArray: '10 6' }).bindTooltip(esc(flightLabel(g)) + ': click to show its steps', { sticky: true, className: 'tt' })
+      .on('click', (e) => { L.DomEvent.stopPropagation(e); pickFlight(state.flights.indexOf(g)); }).addTo(layers.track);
+  }
+  function drawProx(m) {
+    const b = state.prox && state.prox.best; if (!b || !$('#lyr-attention').checked) return;
+    if (!b.a.show || !b.b.show) return;
+    const pa = m.toPx(b.qa.lat, b.qa.lon), pb = m.toPx(b.qb.lat, b.qb.lon);
+    // the distance sits in the fleet note and this tooltip, so the map stays readable where aircraft are close
+    L.polyline([LL(pa), LL(pb)], { color: '#c62828', weight: 3, dashArray: '4 4' }).bindTooltip('Closest on the ground: ' + fmtDist(b.d) + ' at ' + C.clock(b.t, F().tzOffset).slice(0, 8), { sticky: true, className: 'tt' }).addTo(layers.attention);
+  }
+  function drawActive(f, m, show, mpp) {
+    const A = state.airport;
+    const pts = f.track.points; const px = pts.map(p => m.toPx(p.lat, p.lon));
+    // whole track (dotted)
+    if (show('track')) {
+      L.polyline(px.map(LL), { color: '#ffffff', weight: 4, opacity: 0.7, interactive: false }).addTo(layers.track);
+      L.polyline(px.map(LL), { color: '#38444f', weight: 1.6, dashArray: '2 5', opacity: 0.95, interactive: false }).addTo(layers.track);
+    }
+    const sel = state.ui.sel;
+    // steps
+    if (show('steps')) for (const s of f.steps) {
+      if (!s.ptIdx || s.ptIdx.length < 2) continue;
+      const line = s.ptIdx.map(i => LL(px[i]));
+      const dim = sel != null && sel !== s.id;
+      L.polyline(line, { color: '#fff', weight: dim ? 4 : 8, opacity: dim ? 0.3 : 0.9, interactive: false }).addTo(layers.steps);
+      const pl = L.polyline(line, { color: s.color, weight: dim ? 2.5 : 5, opacity: dim ? 0.3 : 1 }).addTo(layers.steps);
+      pl.bindTooltip('Step ' + s.n + ': ' + s.title, { sticky: true, className: 'tt' });
+      pl.on('click', (e) => { L.DomEvent.stopPropagation(e); selectStep(s.id); });
+      // number marker at first ground point in window, else first point
+      const gi = s.ptIdx.find(i => pts[i].gnd); const at = px[gi != null ? gi : s.ptIdx[s.ptIdx.length - 1]];
+      L.marker(LL(at), { icon: L.divIcon({ className: 'num-ic', html: '<span style="background:' + s.color + (dim ? ';opacity:.4' : '') + '">' + s.n + '</span>', iconSize: [22, 22] }), keyboard: false }).on('click', () => selectStep(s.id)).addTo(layers.steps);
+    }
+    // attention areas
+    if (show('attention')) {
+      const ring = (p, r, tip, label, left) => {
+        L.circle(LL(p), { radius: r / mpp, color: '#c62828', weight: 2, dashArray: '6 5', fillColor: '#ef5350', fillOpacity: 0.14 }).bindTooltip(tip, { className: 'tt' }).addTo(layers.attention);
+        if (label) L.marker(LL({ x: p.x + (left ? -1 : 1) * r / mpp * 0.75, y: p.y + (left ? 1 : -1) * r / mpp * 0.75 }), { icon: L.divIcon({ className: 'att-lbl' + (left ? ' left' : ''), html: '<span>' + esc(label) + '</span>', iconSize: null }), interactive: false }).addTo(layers.attention);
+      };
+      if (f.trackEnd) ring(m.toPx(f.trackEnd.lat, f.trackEnd.lon), 40, 'The ADS-B track ends here at ' + C.clock(f.trackEnd.t, f.tzOffset) + ', still moving at ' + Math.round(f.trackEnd.v) + ' kt.', multi() ? null : 'Track ends');
+      for (const s of f.steps) for (const fl of (s.flags || [])) {
+        if (fl.kind === 'hold' && fl.stop) ring(m.toPx(fl.stop.lat, fl.stop.lon), 55, 'Step ' + s.n + ': ' + fl.text, 'Hold: ' + s.el.hold.map(h => h.startsWith('RWY') ? 'Rwy ' + h.slice(4) : h).join(', '));
+      }
+      for (const s of f.steps) if (s.crossing) {
+        const seg = s.crossing.map(i => LL(px[i]));
+        L.polyline(seg, { color: '#c62828', weight: 10, opacity: 0.22, interactive: false }).addTo(layers.attention);
+        ring(px[s.crossing[0]], 40, 'Step ' + s.n + ': runway crossing starts here. ' + s.el.cross.map(c => 'Runway ' + c.slice(4)).join(', '), 'Cross ' + s.el.cross.map(c => 'Rwy ' + c.slice(4)).join(', '), true);
+      }
+      if (A.diagram) for (const h of A.diagram.chart.hotspots) ring({ x: h.px, y: h.py }, 120, h.name + ': hot spot printed on the chart. Read the chart notes for what it warns about.', null);
+    }
+    // parked marker
+    const stops = f.stops || []; const last = stops[stops.length - 1];
+    if (last && last.last) L.circleMarker(LL(m.toPx(last.lat, last.lon)), { radius: 6, color: '#111', weight: 2, fillColor: '#ffd43b', fillOpacity: 1 }).bindTooltip('Parked from ' + C.clock(last.t0, f.tzOffset), { className: 'tt' }).addTo(layers.attention);
+  }
+  function drawNamed() {
+    const f = F(), d = state.airport.diagram; if (!d || !$('#lyr-named').checked) return;
+    const sel = state.ui.sel; const done = new Map();
+    for (const s of f.steps) {
+      if (!s.named || (f.track && sel !== s.id)) continue;
+      const dim = sel != null && sel !== s.id;
+      for (const sp of s.named.spots) {
+        const key = Math.round(sp.px) + ',' + Math.round(sp.py);
+        const k = done.get(key) || 0; done.set(key, k + 1);
+        const r = 16 + k * 5;
+        L.circleMarker(LL({ x: sp.px, y: sp.py }), { radius: r, color: s.color, weight: dim ? 1.5 : 3, opacity: dim ? 0.35 : 0.95, fill: true, fillColor: s.color, fillOpacity: dim ? 0.03 : 0.12 })
+          .bindTooltip('Step ' + s.n + ' names ' + sp.name + ': ' + s.title, { className: 'tt' }).on('click', (e) => { L.DomEvent.stopPropagation(e); selectStep(s.id); }).addTo(layers.named);
+      }
+    }
+  }
+  function fitNamedOrAll() {
+    const f = F(), d = state.airport.diagram; const s = state.ui.sel != null ? f.steps[state.ui.sel] : null;
+    if (s && s.named && s.named.spots.length) {
+      const b = L.latLngBounds(s.named.spots.map(p => LL({ x: p.px, y: p.py })));
+      const minSpan = 260; const c = b.getCenter(); const half = minSpan / 2;
+      const bb = b.extend(L.latLng(c.lat - half, c.lng - half)).extend(L.latLng(c.lat + half, c.lng + half));
+      map.fitBounds(bb.pad(0.15)); return;
+    }
+    map.fitBounds([[-d.h, 0], [0, d.w]]);
+  }
+  function fitFocus() {
+    const f = F(), m = state.airport.model;
+    const vis = state.flights.filter(x => x.show && x.track);
+    if (!m || !vis.length) { if (state.airport.diagram) fitNamedOrAll(); return; }
+    const s = f.track && f.show && state.ui.sel != null ? f.steps[state.ui.sel] : null;
+    let lls = [];
+    if (s && s.ptIdx && s.ptIdx.length) {
+      const pts = f.track.points; let idx = s.ptIdx.filter(i => pts[i].gnd); if (idx.length < 2) idx = s.ptIdx;
+      lls = idx.map(i => LL(m.toPx(pts[i].lat, pts[i].lon)));
+    } else {
+      for (const g of vis) { const pts = g.track.points; let use = pts.filter(p => p.gnd); if (!use.length) use = pts; lls = lls.concat(use.map(p => LL(m.toPx(p.lat, p.lon)))); }
+    }
+    const b = L.latLngBounds(lls);
+    // cap the zoom at about 1.5 m per screen pixel so the chart stays readable
+    const zcap = Math.log2((m.mPerPx || 1) / 1.5);
+    if (b.isValid()) map.fitBounds(b.pad(s ? 0.35 : 0.12), { maxZoom: zcap });
+  }
+  function selectStep(id) {
+    state.ui.sel = state.ui.sel === id ? null : id;
+    const f = F(); const s = f.steps[id];
+    if (state.ui.sel != null && s && s.win) { state.ui.t = Math.max(s.win[0], s.win[1] - 1); const sl = $('#scrub'); if (sl && !sl.disabled) sl.value = state.ui.t; }
+    renderSteps(); renderMap(true); updateScrubLabel();
+    const card = document.querySelector('.step[data-id="' + id + '"]'); if (card && state.ui.sel != null) card.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+  function stepNav(dir) {
+    const f = F(); if (!f.steps.length) return;
+    const list = f.steps.filter(s => !$('#only-move').checked || s.movement).map(s => s.id); if (!list.length) return;
+    let k = list.indexOf(state.ui.sel);
+    k = k < 0 ? (dir > 0 ? 0 : list.length - 1) : clamp(k + dir, 0, list.length - 1);
+    state.ui.sel = null; selectStep(list[k]);
+  }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  // ---------------- time scrubber ----------------
+  const timed = () => state.flights.filter(x => x.show && x.track && x.track.hasTime && x.track.points.length > 1);
+  function renderSlider() {
+    const sl = $('#scrub'); const vis = timed();
+    if (!vis.length || !state.airport.model) { sl.disabled = true; $('#scrub-lbl').textContent = 'Needs a track with times.'; layers.craft.clearLayers(); return; }
+    // one timeline for every aircraft shown: from shortly before the first landing to the last point
+    let t0 = Infinity, t1 = -Infinity;
+    for (const g of vis) { const pts = g.track.points; const li = Math.max(0, C.landingIndex(pts)); t0 = Math.min(t0, pts[Math.max(0, li - 12)].t); t1 = Math.max(t1, pts[pts.length - 1].t); }
+    sl.disabled = false; sl.min = t0; sl.max = t1; sl.step = 1;
+    if (state.ui.t == null || state.ui.t < t0 || state.ui.t > t1) {
+      // start where it is most useful: the closest approach, or else the end of the selected aircraft's track
+      const b = state.prox && state.prox.best; const fa = F();
+      state.ui.t = (b && vis.length > 1) ? b.t : (fa && fa.track && fa.track.hasTime ? fa.track.points[fa.track.points.length - 1].t : t1);
+      state.ui.t = clamp(state.ui.t, t0, t1);
+    }
+    sl.value = state.ui.t; updateScrubLabel();
+  }
+  function posAt(f, t) {
+    const pts = f.track.points; let i = pts.findIndex(p => p.t >= t); if (i <= 0) i = Math.max(1, i < 0 ? pts.length - 1 : 1);
+    const a = pts[i - 1], b = pts[i]; const k = b.t === a.t ? 1 : clamp((t - a.t) / (b.t - a.t), 0, 1);
+    return { lat: a.lat + (b.lat - a.lat) * k, lon: a.lon + (b.lon - a.lon) * k, v: b.v, hdg: b.hdg != null ? b.hdg : bearing(a, b), gnd: b.gnd };
+  }
+  function bearing(a, b) { const k = Math.cos(a.lat * Math.PI / 180); return (Math.atan2((b.lon - a.lon) * k, b.lat - a.lat) * 180 / Math.PI + 360) % 360; }
+  const inTrack = (f, t) => { const p = f.track.points; return t >= p[0].t && t <= p[p.length - 1].t; };
+  function drawCraft() {
+    layers.craft.clearLayers();
+    const m = state.airport.model; if (!m || state.ui.t == null) return;
+    const vis = timed(); const tag = vis.length > 1;
+    for (const f of vis) {
+      if (!inTrack(f, state.ui.t)) continue;
+      const p = posAt(f, state.ui.t); const q = m.toPx(p.lat, p.lon);
+      // rotate the icon by the heading as seen on the diagram
+      const q2 = m.toPx(p.lat + Math.cos(p.hdg * Math.PI / 180) * 1e-4, p.lon + Math.sin(p.hdg * Math.PI / 180) * 1e-4 / Math.cos(p.lat * Math.PI / 180));
+      const ang = Math.atan2(q2.x - q.x, -(q2.y - q.y)) * 180 / Math.PI;
+      const fill = tag ? f.color : '#111';
+      L.marker(LL(q), { icon: L.divIcon({ className: 'craft', html: '<svg viewBox="0 0 24 24" width="26" height="26" style="transform:rotate(' + ang.toFixed(1) + 'deg)"><path d="M12 2l2.2 7.3 7.8 4.2v2l-7.8-2.1-.6 5.1 2.6 1.9v1.6L12 21l-4.2 1v-1.6l2.6-1.9-.6-5.1L2 15.5v-2l7.8-4.2z" fill="' + fill + '" stroke="#fff" stroke-width="1.2"/></svg>' + (tag ? '<span class="craft-tag' + (vis.indexOf(f) % 2 ? ' left' : '') + '" style="background:' + f.color + '">' + esc(flightLabel(f)) + '</span>' : ''), iconSize: [26, 26] }), interactive: false, keyboard: false }).addTo(layers.craft);
+    }
+  }
+  function updateScrubLabel() {
+    const vis = timed(); if (!vis.length || state.ui.t == null) return;
+    const t = state.ui.t; const f = F();
+    let act = null;
+    if (f.track && f.track.hasTime && f.show) act = f.steps.filter(s => s.win && s.win[0] <= t && s.win[1] > s.win[0]).sort((a, b) => b.win[0] - a.win[0])[0];
+    state.ui.active = act ? act.id : null;
+    document.querySelectorAll('.step').forEach(el => el.classList.toggle('active', +el.dataset.id === state.ui.active));
+    const tz = f.tzOffset != null ? f.tzOffset : vis[0].tzOffset;
+    const parts = vis.map(g => {
+      const pts = g.track.points;
+      let txt;
+      if (t < pts[0].t) txt = 'not in its track yet';
+      else if (t > pts[pts.length - 1].t) txt = 'track ended';
+      else {
+        const p = posAt(g, t);
+        const a2 = g === f ? act : g.steps.filter(s => s.win && s.win[0] <= t && s.win[1] > s.win[0]).sort((a, b) => b.win[0] - a.win[0])[0];
+        txt = (p.v != null ? Math.round(p.v) + ' kt' : '') + (p.gnd ? ', on the ground' : ', airborne') + (a2 ? ', step ' + a2.n : '');
+      }
+      return vis.length > 1 ? '<span class="sl-ac" style="--fc:' + g.color + '"><span class="ac-dot" aria-hidden="true"></span><b>' + esc(flightLabel(g)) + '</b> ' + esc(txt) + '</span>' : esc(txt);
+    });
+    $('#scrub-lbl').innerHTML = '<span class="mono">' + C.clock(t, tz) + '</span> ' + parts.join(' ');
+    drawCraft();
+  }
+
+  // ---------------- alignment UI ----------------
+  function renderAlign() {
+    const A = state.airport;
+    const box = $('#align-state');
+    box.className = 'align-state ' + (A.modelState || 'none');
+    box.textContent = A.modelNote || (A.diagram ? '' : 'Attach a diagram to align it with the track.');
+    $('#ctrl-list').innerHTML = A.ctrl.map((c, i) => '<li><span class="ctrl-n">' + (i + 1) + '</span><span class="mono">' + c.lat.toFixed(5) + ', ' + c.lon.toFixed(5) + '</span>' + (A.model && A.model.residuals && A.ctrl.length >= 2 ? '<span class="resid">' + A.model.residuals[i].toFixed(0) + ' m off</span>' : '') + '<button type="button" class="link" data-rm="' + i + '">Remove</button></li>').join('');
+    $('#ctrl-list').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { A.ctrl.splice(+b.dataset.rm, 1); saveCtrl(); recompute(false); });
+    $('#btn-add-pt').disabled = !A.diagram;
+    $('#btn-add-pt').textContent = state.ui.addingPoint ? 'Click the diagram...' : 'Add control point';
+    $('#pt-form').hidden = !state.ui.pendingPoint;
+    document.querySelectorAll('.nudge button').forEach(b => b.disabled = !A.model || A.modelState === 'plain');
+    if (state.ui.addingPoint) $('#align').open = true;
+  }
+  function onMapClick(e) {
+    if (!state.ui.addingPoint) return;
+    const x = e.latlng.lng, y = -e.latlng.lat;
+    const d = state.airport.diagram; if (!d || x < 0 || y < 0 || x > d.w || y > d.h) return;
+    state.ui.addingPoint = false; state.ui.pendingPoint = { px: x, py: y };
+    $('#map').classList.remove('picking');
+    renderAlign();
+    $('#pt-ll').value = ''; $('#pt-ll').focus();
+    $('#pt-where').textContent = 'Point at ' + Math.round(x) + ', ' + Math.round(y) + ' on the diagram.';
+    if (state.airport.model) { const g = state.airport.model.toLL(x, y); $('#pt-ll').placeholder = g.lat.toFixed(5) + ', ' + g.lon.toFixed(5); }
+  }
+  function savePoint(ev) {
+    ev.preventDefault();
+    const v = C.parseLatLonPair($('#pt-ll').value);
+    if (!v || Math.abs(v.lat) > 90 || Math.abs(v.lon) > 180) { $('#pt-err').textContent = 'Use decimal degrees like 25.78627, -80.31072 or chart style like 25 47 10.6N 80 18 38.6W.'; return; }
+    $('#pt-err').textContent = '';
+    state.airport.ctrl.push(Object.assign({}, state.ui.pendingPoint, v)); state.ui.pendingPoint = null; saveCtrl(); recompute(false);
+  }
+
+  // ---------------- samples ----------------
+  const SAMPLES = {
+    mke: { pdf: 'samples/mke-diagram.pdf', tx: 'samples/swa4628-transcript.txt', track: 'samples/swa4628-track.csv', cs: 'SWA4628',
+      extra: [{ tx: 'samples/skw3401-test-transcript.txt', track: 'samples/skw3401-test-track.csv', cs: 'SKW3401', test: true }],
+      banner: '<b>Sample loaded: SWA4628 at MKE, 24 Nov 2026.</b> Your transcript screenshots typed out, the MKE airport diagram you sent, and the ADS-B track you exported. The second aircraft, SKW3401, is made up for testing: it follows the same path two minutes later and holds short of K.' },
+    mia: { pdf: 'samples/mia-test-diagram.pdf', tx: 'samples/aal1154-transcript.txt', track: 'samples/aal1154-track.csv', cs: '',
+      banner: '<b>Sample loaded: AAL1154 at MIA (made up).</b> A synthetic track, a transcript based on your Nov 15 notes, and a test diagram drawn from FlightGear data. It is not the FAA chart.' }
+  };
+  async function loadSample(which) {
+    which = typeof which === 'string' ? which : 'mke';
+    const S = SAMPLES[which];
+    if (overlay) { map.removeLayer(overlay); overlay = null; }
+    state.airport.diagram = null; state.airport.ctrl = []; state.airport.shift = { e: 0, n: 0 }; state.flights = []; state.flights.push(newFlight()); state.active = 0;
+    state.sample = which; $('#sample-banner').hidden = false; $('#sample-text').innerHTML = S.banner + ' Attach your own files to replace it.';
+    state.ui.sel = null; state.ui.t = null;
+    try {
+      const fname = (u) => u.split('/').pop() + ' (sample)';
+      const text = (u) => u ? fetch(u).then(r => { if (!r.ok) throw new Error('sample file'); return r.text(); }) : Promise.resolve(null);
+      const specs = [S].concat(S.extra || []);
+      const [pdf, ...rest] = await Promise.all([fetch(S.pdf).then(r => { if (!r.ok) throw new Error('sample diagram'); return r.arrayBuffer(); })].concat(specs.flatMap(x => [text(x.tx), text(x.track)])));
+      specs.forEach((x, k) => {
+        const f = k === 0 ? state.flights[0] : (state.flights.push(newFlight()), state.flights[k]);
+        f.callsignInput = x.cs || ''; f.isTest = !!x.test;
+        const txt = rest[k * 2], csv = rest[k * 2 + 1];
+        if (txt) f.transcript = { text: txt, name: fname(x.tx) };
+        if (csv) loadTrackText(csv, fname(x.track), true, f, true);
+      });
+      $('#tx-paste').value = F().transcript ? F().transcript.text : '';
+      await loadPdf(new Uint8Array(pdf), fname(S.pdf), pdf.byteLength, true);
+    } catch (e) { console.error(e); setStatus('diagram', 'err', 'The sample could not load. ' + esc(e.message)); }
+  }
+
+  function clearAll() {
+    state.sample = false; $('#sample-banner').hidden = true;
+    if (overlay) { map.removeLayer(overlay); overlay = null; }
+    state.airport.diagram = null; state.airport.ctrl = []; state.airport.shift = { e: 0, n: 0 };
+    state.flights = []; state.flights.push(newFlight()); state.active = 0; state.ui.sel = null; state.ui.t = null;
+    $('#callsign').value = ''; $('#tx-paste').value = '';
+    recompute(false);
+  }
+
+  // ---------------- wiring ----------------
+  function wireDrop(zoneSel, inputSel, handler) {
+    const z = $(zoneSel), inp = $(inputSel);
+    inp.addEventListener('change', () => { if (inp.files[0]) handler(inp.files[0]); inp.value = ''; });
+    ['dragenter', 'dragover'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.remove('over'); }));
+    z.addEventListener('drop', e => { const fl = e.dataTransfer.files[0]; if (fl) handler(fl); });
+  }
+  function init() {
+    initMap();
+    wireDrop('#drop-diagram', '#in-diagram', onDiagramFile);
+    wireDrop('#drop-transcript', '#in-transcript', async (file) => onTranscriptText(await readAs(file, 'readAsText'), file.name));
+    wireDrop('#drop-track', '#in-track', onTrackFile);
+    $('#tx-apply').addEventListener('click', () => { const t = $('#tx-paste').value; if (t.trim()) onTranscriptText(t, 'Pasted text'); });
+    $('#callsign').addEventListener('change', () => { F().callsignInput = $('#callsign').value.trim().toUpperCase(); F().tzManual = false; recompute(true); });
+    $('#btn-add-ac').addEventListener('click', addFlight);
+    $('#tz').addEventListener('change', () => { F().tzOffset = parseFloat($('#tz').value); F().tzManual = true; recompute(false); });
+    ['diagram', 'track', 'steps', 'attention', 'named'].forEach(id => $('#lyr-' + id).addEventListener('change', () => renderMap(false)));
+    $('#only-move').addEventListener('change', renderSteps);
+    $('#btn-prev').addEventListener('click', () => stepNav(-1));
+    $('#btn-next').addEventListener('click', () => stepNav(1));
+    $('#btn-all').addEventListener('click', () => { state.ui.sel = null; renderSteps(); renderMap(true); });
+    $('#scrub').addEventListener('input', e => { state.ui.t = +e.target.value; updateScrubLabel(); });
+    $('#btn-add-pt').addEventListener('click', () => { state.ui.addingPoint = !state.ui.addingPoint; state.ui.pendingPoint = null; $('#map').classList.toggle('picking', state.ui.addingPoint); renderAlign(); });
+    $('#pt-form').addEventListener('submit', savePoint);
+    $('#pt-cancel').addEventListener('click', () => { state.ui.pendingPoint = null; renderAlign(); });
+    document.querySelectorAll('.nudge button').forEach(b => b.addEventListener('click', () => {
+      const s = state.airport.shift; const k = b.dataset.n;
+      if (k === 'reset') { s.e = 0; s.n = 0; } else { const [de, dn] = k.split(',').map(Number); s.e += de; s.n += dn; }
+      recompute(false);
+    }));
+    $('#btn-sample').addEventListener('click', () => loadSample('mke'));
+    $('#btn-sample2').addEventListener('click', () => loadSample('mia'));
+    $('#btn-clear').addEventListener('click', clearAll);
+    renderAll(false);
+    loadSample('mke');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+</body></html>
